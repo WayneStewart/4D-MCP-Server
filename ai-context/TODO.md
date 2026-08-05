@@ -36,6 +36,12 @@ stack works end-to-end.
   Fine for fixtures; wrong for deployments. Implement `TOKEN_STORE: "table"`
   (already stubbed in the config) or another host-editable store so a
   deployment can mint/revoke tokens without rebuilding the component.
+  Relatedly (2026-08-04, hand-check fix testing session): tokens today are
+  static hardcoded strings with no issued-at/expiry, no generation step, and
+  no revocation path other than editing/redeploying source — closer to a
+  handful of shared API keys than session tokens. Any `TOKEN_STORE: "table"`
+  implementation should add `expiresAt` (checked in `validate()`) and a real
+  mint/revoke flow, not just relocate the same static lookup into a table.
 
 - [ ] **Server-side aggregation via `METHOD_WHITELIST`.** A monthly-sales
   rollup took 5 paged `query_entities` calls (80-row cap) plus client-side

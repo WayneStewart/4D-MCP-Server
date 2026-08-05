@@ -46,18 +46,16 @@ Requires **4D 20 R8+** (HTTP request handlers).
 
 2. **Install into the host.** Drop the built component into the host application's `Components/` folder.
 
-3. **Start it at host startup.** Call `MCP_Initialize_Host` from the host's `On Startup` / `On Server Startup` database method:
+3. **Start it.** Call `MCP_Initialize_Host` from the host's `On Startup` / `On Server Startup` database method or manuall:
 
    ```4d
-      ARRAY TEXT($names; 0)
-      COMPONENT LIST($names)
-      var $mcp : Object
-      var $f : 4D.Function
-
-      If (Find in array($names; "4d-mcp-server")>0)
-        $f:=Formula from string("MCP_Initialize_Host")
-        $mcp:=$f.call()
-      End if
+		ARRAY TEXT($names; 0)
+		COMPONENT LIST($names)
+		
+		If(Find in array($names; "4d-mcp-server")>0)
+		  EXECUTE METHOD("MCP_Initialize_Host")
+		  EXECUTE METHOD("MCP_StartServer")
+		End if
    ```
 
    The `COMPONENT LIST` guard plus `Formula from string` indirection means the host compiles and runs cleanly even when the component is not installed (or later removed) — a direct call to `MCP_Initialize_Host` would fail to compile without it.
@@ -129,6 +127,96 @@ FOURD_MCP_URL=http://localhost:8044/mcp FOURD_MCP_TOKEN=SECRET_FULL \
 ```
 
 Half A's unit tests (`npm test`) and Half B's logic tests (`MCP_RunHeadlessTests` under tool4d) need no running server at all.
+
+## Exposing 4D Methods
+
+You can expose methods in the 4D host via the MCP server. This can be particularly useful for testing during development or as a way to provide output that is more than simple data transfer. 
+
+To be exposed a method must:
+- have the 'Shared with components and Host' property set to true
+- set `ALLOW_CALL_METHOD` to `true` in `4D-mcp-config.pref`
+- add each method to `METHOD_WHITELIST` in `4D-mcp-config.pref`
+- add each method's whitelist name to the relevant token's `call` collection in `MCP_Auth._loadTokens()` — a token's own capability list is separate from `METHOD_WHITELIST` and defaults to empty, so a method can be fully whitelisted at the deployment level and still be unreachable by a given token
+
+Enabling methods is not quick and easy and that's a good thing. It's an incredibly powerful option and you really want to be careful when you do it. 
+
+### Defining methods in METHOD_WHITELIST
+
+ `4D-mcp-config.pref` is a JSON document and `METHOD_WHITELIST` is a property of it. Each method you want to expose is added as an object to this JSON file. 
+
+As an example let's add a method built into the component: `MCP_Fixture_Ping`. The object we need to create looks like this: 
+
+```json
+{
+    "method": "MCP_Fixture_Ping",
+    "args": [
+     {
+      "name": "echo",
+      "type": "text",
+      "required": false,
+      "purpose": "text echoed back in the response"
+      }
+}
+```
+
+This is added to the config json with a name to use with the AI. You can use the method name or something else, as in this case: 
+
+```json
+...
+ "ALLOW_CALL_METHOD": {
+  "comment": "Global gate for call_method. When false, METHOD_WHITELIST is ignored entirely.",
+  "value": true
+ "METHOD_WHITELIST": {
+  "comment": "Map of client-visible action name ...",
+  "value": {
+	   "ping": {
+	    "method": "MCP_Fixture_Ping",
+	    "args": [
+		     {
+		      "name": "echo",
+		      "type": "text",
+		      "required": false,
+		      "purpose": "text echoed back in the response"
+		     }
+	    ],
+	    "return": "object",
+	    "purpose": "Liveness check; returns {pong:true} plus the echo if given"
+	   },
+	   "order_count": {
+	    "method": "MCP_Fixture_OrderCount",
+	    "args": [
+		     {
+		      "name": "status",
+		      "type": "text",
+		      "required": false,
+		      "purpose": "filter to one order status"
+		     }
+	    ],
+	    "return": "object",
+	    "purpose": "Count orders, optionally filtered by status"
+	   }
+   }, 
+   ...
+```
+
+## Tokens & capabilities
+
+Every request carries a Bearer token, which `MCP_Auth` resolves to a capability object:
+
+```
+{ token_id: Text; read: []Text | "*"; write: []Text | "*"; call: []Text }
+```
+
+- **`read`/`write`** are either the wildcard `"*"` (every dataclass the deployment config exposes) or an explicit list of dataclass names. An absent verb normalizes to no access.
+- **`call`** is an explicit list of client-facing action names (the keys you defined in `METHOD_WHITELIST`, not the underlying 4D method names) that this specific token is allowed to invoke.
+
+**`call` is a second, independent gate on top of `METHOD_WHITELIST` — both must agree.** `METHOD_WHITELIST` + `ALLOW_CALL_METHOD` control what the *deployment* is willing to run for anyone; a token's own `call` list controls what *that token* is allowed to reach within that set. Whitelisting a method deployment-wide does nothing for a token whose `call` list doesn't also name it — you'll get `CAP_DENIED: Token cannot call action`, distinct from `CAP_DENIED: Action not enabled in server config` (which means the deployment-level gate failed instead). The two error messages tell you which side to fix.
+
+### Where tokens live today
+
+v1 defines every token inline, hardcoded, in `MCP_Auth._loadTokens()` — the bearer string itself is the object key, e.g. `"SECRET_STAR"`. There is no generation step, no expiry, no revocation short of editing and redeploying that method. This is a fixture-grade mechanism, closer to a handful of shared API keys than to session tokens, and it currently requires component source access to change.
+
+**This means an end user of the host database — someone who only has the compiled/installed component, not its project source — cannot mint, edit, or revoke a token themselves.** Provisioning a new token, or changing what an existing one can reach, is a code change made by whoever maintains the component, not a configuration step available from the host application. If self-service token management is needed, `_loadTokens()` is designed to be swapped for a table-backed store (`TOKEN_STORE: "table"` is already stubbed in `4D-mcp-config.pref`) — but as of this writing that swap hasn't been implemented, and even once it is, it would need real generation/expiry logic added on top, not just the same static lookup moved into a table (tracked in `ai-context/TODO.md`).
 
 ## Documentation
 

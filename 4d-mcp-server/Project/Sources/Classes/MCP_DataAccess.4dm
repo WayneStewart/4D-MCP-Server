@@ -15,69 +15,69 @@
 // shared This property is rejected), so config is exposed via functions.
 
 shared singleton Class constructor()
-
-// _HARD_CAP: query_entities limit default AND hard cap.
+	
+	// _HARD_CAP: query_entities limit default AND hard cap.
 Function _HARD_CAP() : Integer
 	return 80
-
-// =============================================================================
-//  query_entities  (3.2)
-// =============================================================================
+	
+	// =============================================================================
+	//  query_entities  (3.2)
+	// =============================================================================
 Function query_entities($params : Object) : Object
 	var $dc : 4D.DataClass
 	$dc:=ds[String($params.dataclass)]
-	if ($dc=Null)
+	If ($dc=Null)
 		return This._err("QUERY_ERROR"; "Unknown dataclass: "+String($params.dataclass))
-	end if
-
+	End if 
+	
 	// offset
 	var $offset : Integer
 	$offset:=0
-	if ($params.offset#Null)
+	If ($params.offset#Null)
 		$offset:=Num($params.offset)
-	end if
-	if ($offset<0)
+	End if 
+	If ($offset<0)
 		$offset:=0
-	end if
-
+	End if 
+	
 	// limit: default = hard cap; clamp anything larger.
 	var $cap : Integer
 	$cap:=This._HARD_CAP()
 	var $limit : Integer
 	var $clamped : Boolean
 	$clamped:=False
-	if ($params.limit=Null)
+	If ($params.limit=Null)
 		$limit:=$cap
-	else
+	Else 
 		$limit:=Num($params.limit)
-		if ($limit>$cap)
+		If ($limit>$cap)
 			$limit:=$cap
 			$clamped:=True
-		end if
-		if ($limit<0)
+		End if 
+		If ($limit<0)
 			$limit:=0
-		end if
-	end if
-
+		End if 
+	End if 
+	
 	// build selection (filter + placeholder binding + orderBy)
 	var $sel : 4D.EntitySelection
 	Try
 		$sel:=This._query($dc; String($params.filter); $params.params)
-		if ($params.orderBy#Null)
-			if (Length(String($params.orderBy))>0)
+		If ($params.orderBy#Null)
+			If (Length(String($params.orderBy))>0)
 				$sel:=$sel.orderBy(String($params.orderBy))
-			end if
-		end if
+			End if 
+		End if 
 	Catch
 		return This._err("QUERY_ERROR"; This._lastErrorText())
 	End try
-
+	
 	var $total : Integer
 	$total:=$sel.length
-
+	
 	var $projNames : Collection
 	$projNames:=This._projectionNames(String($params.dataclass); $params.attributes)
-
+	
 	var $data : Collection
 	$data:=New collection
 	Try
@@ -86,11 +86,11 @@ Function query_entities($params : Object) : Object
 		var $e : 4D.Entity
 		For each ($e; $page)
 			$data.push(This._entityObject($e; $projNames))
-		End for each
+		End for each 
 	Catch
 		return This._err("QUERY_ERROR"; This._lastErrorText())
 	End try
-
+	
 	var $count : Integer
 	$count:=$data.length
 	var $meta : Object
@@ -102,26 +102,26 @@ Function query_entities($params : Object) : Object
 		"truncated"; (($offset+$count)<$total); \
 		"clamped"; $clamped)
 	return New object("data"; $data; "meta"; $meta)
-
-// _query: bind filter values positionally to :1, :2 ... Injection-safe.
-// The explicit length branches guarantee correct positional binding regardless
-// of 4D version; >6 placeholders fall back to passing the collection (verify on
-// first run for that edge case only).
+	
+	// _query: bind filter values positionally to :1, :2 ... Injection-safe.
+	// The explicit length branches guarantee correct positional binding regardless
+	// of 4D version; >6 placeholders fall back to passing the collection (verify on
+	// first run for that edge case only).
 Function _query($dc : 4D.DataClass; $filter : Text; $qp : Variant) : 4D.EntitySelection
-	if ($filter=Null)
+	If ($filter=Null)
 		return $dc.all()
-	end if
-	if (Length($filter)=0)
+	End if 
+	If (Length($filter)=0)
 		return $dc.all()
-	end if
+	End if 
 	var $c : Collection
 	$c:=New collection
-	if ($qp#Null)
-		if (Value type($qp)=Is collection)
+	If ($qp#Null)
+		If (Value type($qp)=Is collection)
 			$c:=$qp
-		end if
-	end if
-	Case of
+		End if 
+	End if 
+	Case of 
 		: ($c.length=0)
 			return $dc.query($filter)
 		: ($c.length=1)
@@ -136,41 +136,41 @@ Function _query($dc : 4D.DataClass; $filter : Text; $qp : Variant) : 4D.EntitySe
 			return $dc.query($filter; $c[0]; $c[1]; $c[2]; $c[3]; $c[4])
 		: ($c.length=6)
 			return $dc.query($filter; $c[0]; $c[1]; $c[2]; $c[3]; $c[4]; $c[5])
-		else
+		Else 
 			return $dc.query($filter; $c)
-	End case
-
-// =============================================================================
-//  get_entity  (3.3)
-// =============================================================================
+	End case 
+	
+	// =============================================================================
+	//  get_entity  (3.3)
+	// =============================================================================
 Function get_entity($params : Object) : Object
 	var $dc : 4D.DataClass
 	$dc:=ds[String($params.dataclass)]
-	if ($dc=Null)
+	If ($dc=Null)
 		return This._err("QUERY_ERROR"; "Unknown dataclass: "+String($params.dataclass))
-	end if
+	End if 
 	var $e : 4D.Entity
 	Try
 		$e:=$dc.get($params.key)
 	Catch
 		return This._err("QUERY_ERROR"; This._lastErrorText())
 	End try
-	if ($e=Null)
+	If ($e=Null)
 		return This._err("NOT_FOUND"; "No entity with key "+JSON Stringify($params.key))
-	end if
+	End if 
 	var $projNames : Collection
 	$projNames:=This._projectionNames(String($params.dataclass); $params.attributes)
 	return New object("data"; This._entityObject($e; $projNames))
-
-// =============================================================================
-//  create_entity  (3.4)
-// =============================================================================
+	
+	// =============================================================================
+	//  create_entity  (3.4)
+	// =============================================================================
 Function create_entity($params : Object) : Object
 	var $dc : 4D.DataClass
 	$dc:=ds[String($params.dataclass)]
-	if ($dc=Null)
+	If ($dc=Null)
 		return This._err("QUERY_ERROR"; "Unknown dataclass: "+String($params.dataclass))
-	end if
+	End if 
 	var $e : 4D.Entity
 	$e:=$dc.new()
 	$e.fromObject($params.values)
@@ -180,29 +180,29 @@ Function create_entity($params : Object) : Object
 	Catch
 		return This._err("INTERNAL"; This._lastErrorText())
 	End try
-	if (Not($status.success))
+	If (Not($status.success))
 		return This._err("QUERY_ERROR"; This._statusText($status))
-	end if
+	End if 
 	return New object("data"; New object("key"; $e.getKey(); "created"; True))
-
-// =============================================================================
-//  update_entity  (3.5)
-// =============================================================================
+	
+	// =============================================================================
+	//  update_entity  (3.5)
+	// =============================================================================
 Function update_entity($params : Object) : Object
 	var $dc : 4D.DataClass
 	$dc:=ds[String($params.dataclass)]
-	if ($dc=Null)
+	If ($dc=Null)
 		return This._err("QUERY_ERROR"; "Unknown dataclass: "+String($params.dataclass))
-	end if
+	End if 
 	var $e : 4D.Entity
 	Try
 		$e:=$dc.get($params.key)
 	Catch
 		return This._err("QUERY_ERROR"; This._lastErrorText())
 	End try
-	if ($e=Null)
+	If ($e=Null)
 		return This._err("NOT_FOUND"; "No entity with key "+JSON Stringify($params.key))
-	end if
+	End if 
 	$e.fromObject($params.values)
 	var $status : Object
 	Try
@@ -210,29 +210,29 @@ Function update_entity($params : Object) : Object
 	Catch
 		return This._err("INTERNAL"; This._lastErrorText())
 	End try
-	if (Not($status.success))
+	If (Not($status.success))
 		return This._err("QUERY_ERROR"; This._statusText($status))
-	end if
+	End if 
 	return New object("data"; New object("key"; $e.getKey(); "updated"; True))
-
-// =============================================================================
-//  delete_entity  (3.6)
-// =============================================================================
+	
+	// =============================================================================
+	//  delete_entity  (3.6)
+	// =============================================================================
 Function delete_entity($params : Object) : Object
 	var $dc : 4D.DataClass
 	$dc:=ds[String($params.dataclass)]
-	if ($dc=Null)
+	If ($dc=Null)
 		return This._err("QUERY_ERROR"; "Unknown dataclass: "+String($params.dataclass))
-	end if
+	End if 
 	var $e : 4D.Entity
 	Try
 		$e:=$dc.get($params.key)
 	Catch
 		return This._err("QUERY_ERROR"; This._lastErrorText())
 	End try
-	if ($e=Null)
+	If ($e=Null)
 		return This._err("NOT_FOUND"; "No entity with key "+JSON Stringify($params.key))
-	end if
+	End if 
 	var $key : Variant
 	$key:=$e.getKey()
 	var $status : Object
@@ -241,21 +241,21 @@ Function delete_entity($params : Object) : Object
 	Catch
 		return This._err("INTERNAL"; This._lastErrorText())
 	End try
-	if (Not($status.success))
+	If (Not($status.success))
 		return This._err("QUERY_ERROR"; This._statusText($status))
-	end if
+	End if 
 	return New object("data"; New object("key"; $key; "deleted"; True))
-
-// =============================================================================
-//  call_method  (3.7)
-// =============================================================================
-// The action map lives in the deployment config (METHOD_WHITELIST): action
-// name -> {method, args:[{name,type,required,purpose}], return, purpose}.
-// `method` is a HOST project method invoked via EXECUTE METHOD with the
-// request's args bound POSITIONALLY (4D method params are positional; the
-// spec's arg names are documentation for the client). Anything not in the
-// map is unreachable. Arity/type validation happens in MCP_Handler gate 4;
-// this function owns only execution.
+	
+	// =============================================================================
+	//  call_method  (3.7)
+	// =============================================================================
+	// The action map lives in the deployment config (METHOD_WHITELIST): action
+	// name -> {method, args:[{name,type,required,purpose}], return, purpose}.
+	// `method` is a HOST project method invoked via EXECUTE METHOD with the
+	// request's args bound POSITIONALLY (4D method params are positional; the
+	// spec's arg names are documentation for the client). Anything not in the
+	// map is unreachable. Arity/type validation happens in MCP_Handler gate 4;
+	// this function owns only execution.
 Function call_method($params : Object) : Object
 	var $name : Text
 	$name:=String($params.name)
@@ -263,24 +263,29 @@ Function call_method($params : Object) : Object
 	$spec:=Null
 	var $config : Object
 	$config:=cs.MCP_Handler.me.getConfig()
-	if ($config#Null)
-		if (Value type($config.METHOD_WHITELIST)=Is object)
+	
+	If ($config#Null)
+		If (Value type($config.METHOD_WHITELIST)=Is object)
 			$spec:=$config.METHOD_WHITELIST[$name]
-		end if
-	end if
-	if ($spec=Null)
+		End if 
+	End if 
+	
+	If ($spec=Null)
 		return This._err("CAP_DENIED"; "Action not enabled in server config: "+$name)
-	end if
+	End if 
+	
 	var $method : Text
 	$method:=String($spec.method)
 	var $args : Collection
 	$args:=New collection
-	if (Value type($params.args)=Is collection)
+	
+	If (Value type($params.args)=Is collection)
 		$args:=$params.args
-	end if
+	End if 
 	var $result : Variant
+	
 	Try
-		Case of
+		Case of 
 			: ($args.length=0)
 				EXECUTE METHOD($method; $result)
 			: ($args.length=1)
@@ -295,52 +300,52 @@ Function call_method($params : Object) : Object
 				EXECUTE METHOD($method; $result; $args[0]; $args[1]; $args[2]; $args[3]; $args[4])
 			: ($args.length=6)
 				EXECUTE METHOD($method; $result; $args[0]; $args[1]; $args[2]; $args[3]; $args[4]; $args[5])
-			else
+			Else 
 				return This._err("BAD_PARAMS"; "Too many args (max 6)")
-		End case
+		End case 
 	Catch
 		return This._err("INTERNAL"; This._lastErrorText())
 	End try
 	return New object("data"; New object("name"; $name; "result"; $result))
-
-// --- Helpers ----------------------------------------------------------------
-
-// _projectionNames: the storage-attribute names to return for one row.
-// SCALAR-ONLY, always: relation attributes and dotted paths are never
-// projected (wire contract §6), whether or not RESPECT_4D_SCHEMA is on — this
-// is what stops attributes:["orders"] from dumping related entities. When
-// RESPECT_4D_SCHEMA is on, unexposed storage fields are additionally excluded.
-// An explicit `attributes` list is intersected with this rule (unknown names,
-// relations and unexposed fields silently dropped); an empty result means the
-// row has no returnable fields — the caller emits {} (never "all").
+	
+	// --- Helpers ----------------------------------------------------------------
+	
+	// _projectionNames: the storage-attribute names to return for one row.
+	// SCALAR-ONLY, always: relation attributes and dotted paths are never
+	// projected (wire contract §6), whether or not RESPECT_4D_SCHEMA is on — this
+	// is what stops attributes:["orders"] from dumping related entities. When
+	// RESPECT_4D_SCHEMA is on, unexposed storage fields are additionally excluded.
+	// An explicit `attributes` list is intersected with this rule (unknown names,
+	// relations and unexposed fields silently dropped); an empty result means the
+	// row has no returnable fields — the caller emits {} (never "all").
 Function _projectionNames($dcName : Text; $attributes : Variant) : Collection
 	var $respect : Boolean
 	var $config : Object
 	$config:=cs.MCP_Handler.me.getConfig()
 	$respect:=($config#Null) && Bool($config.RESPECT_4D_SCHEMA)
-
-	if (Value type($attributes)=Is collection)
-		if ($attributes.length>0)
+	
+	If (Value type($attributes)=Is collection)
+		If ($attributes.length>0)
 			var $kept : Collection
 			$kept:=New collection
 			var $req : Variant
 			For each ($req; $attributes)
 				var $reqAttr : Object
 				$reqAttr:=ds[$dcName][String($req)]
-				if ($reqAttr=Null)
+				If ($reqAttr=Null)
 					continue  // unknown name or dotted path
-				end if
-				if ($reqAttr.kind#"storage")
+				End if 
+				If ($reqAttr.kind#"storage")
 					continue  // relation attribute — scalar-only
-				end if
-				if ($respect) && (Not(Bool($reqAttr.exposed)))
+				End if 
+				If ($respect) && (Not(Bool($reqAttr.exposed)))
 					continue  // unexposed field
-				end if
+				End if 
 				$kept.push($reqAttr.name)
-			End for each
+			End for each 
 			return $kept
-		end if
-	end if
+		End if 
+	End if 
 	// default: all scalar (storage) attributes, exposure-filtered when respect.
 	// Attribute objects via datastore double-bracket ds[$name][$key]; direct
 	// bracket on a DataClass throws in this 4D build.
@@ -350,61 +355,62 @@ Function _projectionNames($dcName : Text; $attributes : Variant) : Collection
 	For each ($key; OB Keys(ds[$dcName]))
 		var $a : Object
 		$a:=ds[$dcName][$key]
-		if ($a#Null)
-			if ($a.kind="storage")
-				if ($respect) && (Not(Bool($a.exposed)))
+		If ($a#Null)
+			If ($a.kind="storage")
+				If ($respect) && (Not(Bool($a.exposed)))
 					continue
-				end if
+				End if 
 				$names.push($a.name)
-			end if
-		end if
-	End for each
+			End if 
+		End if 
+	End for each 
 	return $names
-
-// _entityObject: project an entity to the given storage-attribute names.
-// An empty name list yields {} — NEVER toObject(""), which ORDA treats as
-// "all attributes" and would leak the very fields the projection excluded.
+	
+	// _entityObject: project an entity to the given storage-attribute names.
+	// An empty name list yields {} — NEVER toObject(""), which ORDA treats as
+	// "all attributes" and would leak the very fields the projection excluded.
 Function _entityObject($e : 4D.Entity; $names : Collection) : Object
-	if ($names=Null) || ($names.length=0)
+	If ($names=Null) || ($names.length=0)
 		return New object
-	end if
+	End if 
 	return $e.toObject($names.join(","))
-
+	
 Function _err($code : Text; $message : Text) : Object
 	return New object("error"; New object("code"; $code; "message"; $message))
-
+	
 Function _statusText($status : Object) : Text
-	if ($status.statusText#Null)
-		if (Length(String($status.statusText))>0)
+	If ($status.statusText#Null)
+		If (Length(String($status.statusText))>0)
 			return String($status.statusText)
-		end if
-	end if
-	if ($status.errors#Null)
-		if ($status.errors.length>0)
+		End if 
+	End if 
+	If ($status.errors#Null)
+		If ($status.errors.length>0)
 			var $msgs : Collection
 			$msgs:=New collection
 			var $er : Object
 			For each ($er; $status.errors)
 				$msgs.push(String($er.message))
-			End for each
+			End for each 
 			return $msgs.join("; ")
-		end if
-	end if
+		End if 
+	End if 
 	return "Operation rejected by 4D"
-
+	
 Function _lastErrorText() : Text
 	var $errs : Collection
 	$errs:=Last errors
-	if ($errs=Null)
+	If ($errs=Null)
 		return "Unknown 4D error"
-	end if
-	if ($errs.length=0)
+	End if 
+	If ($errs.length=0)
 		return "Unknown 4D error"
-	end if
+	End if 
 	var $msgs : Collection
 	$msgs:=New collection
 	var $e : Object
 	For each ($e; $errs)
 		$msgs.push(String($e.message))
-	End for each
+	End for each 
 	return $msgs.join("; ")
+	

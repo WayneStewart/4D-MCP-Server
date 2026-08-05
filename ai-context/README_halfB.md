@@ -136,11 +136,41 @@ $t["SECRET_FULL"]:=New object(\
 - Absent verb array = no access to that verb.
 - `attributes` projection is a **client convenience, not a security boundary** —
   gating is at the dataclass level only (contract §6).
+- **`call` is independent of `METHOD_WHITELIST`.** `METHOD_WHITELIST` +
+  `ALLOW_CALL_METHOD` decide what the *deployment* will run for anyone; a
+  token's own `call` collection decides what *that token* may reach within
+  that set — both must name the action. A whitelisted-but-ungranted action
+  fails with `CAP_DENIED: Token cannot call action: <name>` (from
+  `_checkCapability`), distinguishable from `CAP_DENIED: Action not enabled
+  in server config: <name>` (the deployment-level gate in `call_method`
+  itself) — the two messages tell you which side to fix.
+- **No expiry, no generation, no revocation.** Tokens are static strings
+  hardcoded in this method; "issuing" one means adding a literal here and
+  redeploying/reloading the component. There is no session/lifecycle
+  behavior today (tracked in `TODO.md`).
 
 **Swapping the store:** replace only `_loadTokens()` with a table lookup
-(e.g. `ds.MCP_Token.query(...)`) that returns the same shape. Nothing else changes.
+(e.g. `ds.MCP_Token.query(...)`) that returns the same shape. Nothing else
+changes — though note that alone only relocates the same static lookup; real
+expiry/generation/revocation would still need to be built on top.
 
 ## Registering a callable action (`call_method`)
+
+Exposing a HOST method to `call_method` needs **all** of:
+
+1. The method's **"Shared by components and host database"** property set to
+   true (Method Properties in the IDE, or `//%attributes = {"shared":true}`
+   in the `.4dm` header — same setting, two ways to set it). Without this,
+   `EXECUTE METHOD` from inside the component cannot see the host's method at
+   all and fails with `INTERNAL: Project method not found`, even though the
+   method genuinely exists in the host project — this crosses the
+   component/host boundary, which 4D gates independently of anything in this
+   component's own config.
+2. `ALLOW_CALL_METHOD: true` in `4D-mcp-config.pref`.
+3. An entry in `METHOD_WHITELIST` (below).
+4. The calling token's own `call` collection naming the same action (see
+   "Configuring a token" above) — easy to miss, since 1–3 alone will still
+   leave every token `CAP_DENIED`.
 
 The client names an **action_name**, never a 4D method name. The map lives in
 the deployment config (`METHOD_WHITELIST` in `4D-mcp-config.pref`) — each entry

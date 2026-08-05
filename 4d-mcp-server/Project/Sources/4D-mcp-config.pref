@@ -1,7 +1,7 @@
 {
  "_doc": {
   "comment": "Config for the 4D MCP Server component. Every setting is {comment, value}. The component copies this file to the Host's Project/Sources/ on first read if none exists; edit it there. The loader reads on demand, so edits are live on the next request \u2014 no restart needed.",
-  "value": null
+  "value": "component"
  },
  "ENABLED": {
   "comment": "Master switch. false = the component loads but answers nothing.",
