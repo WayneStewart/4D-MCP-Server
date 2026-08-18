@@ -403,6 +403,75 @@ Function runAll() : Object
 	$res:=This._call($RO; "get_schema_digest"; New object)
 	This._ok($r; "digest_callable_ro_empty"; ($res.env.data.callable_actions.length=0))
 
+	// 25. TOKEN_STORE routing. The inline store is a component fixture; real
+	// hosts keep tokens in a dataclass so granting an action is a row edit.
+	// Every case here is a FAIL-CLOSED case: the happy path needs a host table
+	// with a tokenHash attribute, which this component's fixture base has no
+	// business carrying — it is covered against the host's real token table.
+
+	// "table" with TOKEN_TABLE blank -> nothing validates. The danger this
+	// guards is a half-configured host silently honouring the inline fixtures.
+	This._patchConfig($cfgFile; $cfgOrig; "TOKEN_STORE"; "table")
+	$res:=This._call($FULL; "query_entities"; New object("dataclass"; "Customer"))
+	This._ok($r; "tokenstore_table_blank_denies"; ($res.status=401))
+	$res:=This._call($STAR; "get_schema_digest"; New object)
+	This._ok($r; "tokenstore_table_blank_denies_star"; ($res.status=401))
+
+	// "table" naming a dataclass that has no tokenHash attribute -> the query
+	// throws and is caught as "no such token", not as a 500.
+	var $cfgTable : Object
+	$cfgTable:=JSON Parse($cfgOrig)
+	$cfgTable.TOKEN_STORE.value:="table"
+	$cfgTable.TOKEN_TABLE.value:="Secret"
+	$cfgFile.setText(JSON Stringify($cfgTable))
+	$res:=This._call($FULL; "query_entities"; New object("dataclass"; "Customer"))
+	This._ok($r; "tokenstore_table_wrong_shape_denies"; ($res.status=401))
+
+	// THE ESCALATION GUARD, asserted against the exposure rule directly. It
+	// cannot be driven through handle(): pointing TOKEN_TABLE at a table with
+	// no tokenHash means no token validates, so every request 401s before
+	// reaching the exposure gate and the assertion would pass vacuously.
+	// getConfig() flattens {KEY:{comment,value}} to {KEY:value}, so a synthetic
+	// config is the same shape the gate receives at runtime.
+	// WHITELIST_TABLES is the hostile case: it overrides blacklist AND
+	// RESPECT_4D_SCHEMA, so naming the credential store there is the one way an
+	// admin could otherwise publish it. A readable token table hands any token
+	// every other token's grants and hashes.
+	var $probe : Object
+	$probe:=New object("TOKEN_STORE"; "table"; "TOKEN_TABLE"; "Secret"; \
+		"RESPECT_4D_SCHEMA"; False; "WHITELIST_TABLES"; New collection("Customer"; "Secret"); \
+		"BLACKLIST_TABLES"; New collection)
+	var $exposedProbe : Collection
+	$exposedProbe:=cs.MCP_Schema.me.exposedDataclasses($probe)
+	This._ok($r; "tokentable_excluded_from_whitelist"; ($exposedProbe.indexOf("Secret")<0))
+	This._ok($r; "tokentable_exclusion_keeps_others"; ($exposedProbe.indexOf("Customer")>=0))
+	This._ok($r; "tokentable_isexposed_false"; Not(cs.MCP_Schema.me.isExposed($probe; "Secret")))
+	// case-insensitively, matching ds[...] resolution
+	$probe.TOKEN_TABLE:="sEcReT"
+	This._ok($r; "tokentable_exclusion_case_insensitive"; \
+		(cs.MCP_Schema.me.exposedDataclasses($probe).indexOf("Secret")<0))
+	// and the inline store leaves exposure untouched
+	$probe.TOKEN_STORE:="inline"
+	$probe.TOKEN_TABLE:="Secret"
+	This._ok($r; "tokentable_inline_no_exclusion"; \
+		(cs.MCP_Schema.me.exposedDataclasses($probe).indexOf("Secret")>=0))
+
+	// unknown store name is not a synonym for "inline"
+	This._patchConfig($cfgFile; $cfgOrig; "TOKEN_STORE"; "wharever")
+	$res:=This._call($FULL; "query_entities"; New object("dataclass"; "Customer"))
+	This._ok($r; "tokenstore_unknown_denies"; ($res.status=401))
+
+	// absent TOKEN_STORE defaults to inline (back-compat with pre-table hosts)
+	$cfgTable:=JSON Parse($cfgOrig)
+	OB REMOVE($cfgTable; "TOKEN_STORE")
+	$cfgFile.setText(JSON Stringify($cfgTable))
+	$res:=This._call($FULL; "query_entities"; New object("dataclass"; "Customer"))
+	This._ok($r; "tokenstore_absent_defaults_inline"; ($res.status=200) && ($res.env.ok=True))
+
+	$cfgFile.setText($cfgOrig)
+	$res:=This._call($FULL; "query_entities"; New object("dataclass"; "Customer"))
+	This._ok($r; "tokenstore_config_restored_200"; ($res.status=200) && ($res.env.ok=True))
+
 	// tally
 	var $passed : Integer
 	$passed:=0
