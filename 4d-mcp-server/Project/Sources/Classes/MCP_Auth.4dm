@@ -116,6 +116,18 @@ Function tokenTableName($config : Object) : Text
 	if (Lowercase(String($config.TOKEN_STORE))#"table")
 		return ""
 	end if
+	return This._resolveTable($config)
+
+// _resolveTable: TOKEN_TABLE in canonical casing, WITHOUT the TOKEN_STORE gate.
+// issueToken/revokeToken use this so a host can create the first row while the
+// store is still "inline" — otherwise seeding needs the switch thrown first,
+// and the switch locks every client out until a row exists that cannot be
+// created yet. Authentication and exposure keep the gated tokenTableName: a
+// TOKEN_TABLE left set beside an inline store must not quietly become live.
+Function _resolveTable($config : Object) : Text
+	if ($config=Null)
+		return ""
+	end if
 	var $want : Text
 	$want:=Lowercase(String($config.TOKEN_TABLE))
 	if (Length($want)=0)
@@ -129,10 +141,125 @@ Function tokenTableName($config : Object) : Text
 	End for each
 	return ""
 
-// hashToken: the digest stored in tokenHash. Public so a host seeding routine
-// computes it the same way this class does — the two must never drift.
+// hashToken: the digest stored in tokenHash. Public so a caller can look a row
+// up by hash without this class having to hand out a finder.
 Function hashToken($token : Text) : Text
 	return Generate digest(String($token); SHA256 digest)
+
+// issueToken: mint a bearer into the host's token table. Returns
+//   { success; message; token; tokenId }
+// with `token` populated ONCE — only its digest is stored, so a lost token is
+// reissued under a new id, never recovered.
+//
+// THIS LIVES IN THE COMPONENT ON PURPOSE. Everything it has to get right is
+// this class's business: the digest algorithm, the {read; write; call} row
+// shape, what isActive means. A host-side copy per project is the same method
+// written N times, and the first edit to one of them puts a row in a shape
+// MCP_Auth no longer reads — with no error to explain why a valid-looking token
+// stopped validating.
+//
+// Not reachable through MCP: call_method only invokes host project methods, and
+// the token table is excluded from the exposed set anyway. A host runs this
+// from the method editor, or wraps it in a host method to log the result.
+//
+//   $tokenId  audit label, unique by convention. What logs record.
+//   $grants   { read; write; call }. read/write are "*" or a collection of
+//             dataclass names; call is a collection of ACTION names from
+//             METHOD_WHITELIST — never host method names, which never cross
+//             the wire, and never "*", which `call` does not accept.
+Function issueToken($tokenId : Text; $grants : Object) : Object
+	var $out : Object
+	$out:=New object("success"; False; "message"; ""; "token"; ""; "tokenId"; String($tokenId))
+
+	if (Length(String($tokenId))=0)
+		$out.message:="A token needs an id — it is the only label the audit log carries."
+		return $out
+	end if
+
+	var $config : Object
+	$config:=cs.MCP_Handler.me.getConfig()
+	var $dcName : Text
+	$dcName:=This._resolveTable($config)
+	if (Length($dcName)=0)
+		$out.message:="No token table: set TOKEN_TABLE to a dataclass that exists, then try again. TOKEN_STORE may stay \"inline\" until the row is created."
+		return $out
+	end if
+
+	var $dup : Boolean
+	$dup:=False
+	Try
+		$dup:=(ds[$dcName].query("tokenId == :1"; String($tokenId)).length>0)
+	Catch
+		$out.message:="["+$dcName+"] does not carry the token row shape (tokenHash, tokenId, grants, isActive)."
+		return $out
+	End try
+	if ($dup)
+		$out.message:="A token with id \""+String($tokenId)+"\" already exists. Revoke it, or choose another id."
+		return $out
+	end if
+
+	// Two UUIDs of entropy, dashes stripped, prefixed so a leaked string is
+	// recognisable as an MCP credential in a log or a paste.
+	var $token : Text
+	$token:="mcp_"+Replace string(Generate UUID; "-"; "")+Replace string(Generate UUID; "-"; "")
+
+	var $norm : Object
+	$norm:=New object("read"; New collection; "write"; New collection; "call"; New collection)
+	if ($grants#Null)
+		$norm.read:=$grants.read
+		$norm.write:=$grants.write
+		$norm.call:=$grants.call
+	end if
+
+	var $e : Object
+	$e:=ds[$dcName].new()
+	$e.tokenHash:=This.hashToken($token)
+	$e.tokenId:=String($tokenId)
+	$e.grants:=$norm
+	$e.isActive:=True
+	var $saved : Object
+	$saved:=$e.save()
+	if (Not($saved.success))
+		$out.message:="The token record could not be saved."
+		return $out
+	end if
+
+	$out.success:=True
+	$out.token:=$token
+	$out.message:="Copy the token now — it is not stored and cannot be shown again."
+	return $out
+
+// revokeToken: flip isActive off by audit label, keeping the row. Deleting it
+// would take the only evidence that the credential ever existed with it.
+Function revokeToken($tokenId : Text) : Object
+	var $out : Object
+	$out:=New object("success"; False; "message"; "")
+	var $dcName : Text
+	$dcName:=This._resolveTable(cs.MCP_Handler.me.getConfig())
+	if (Length($dcName)=0)
+		$out.message:="No token table configured (TOKEN_TABLE is blank or names nothing)."
+		return $out
+	end if
+	var $e : Object
+	$e:=Null
+	Try
+		$e:=ds[$dcName].query("tokenId == :1"; String($tokenId)).first()
+	Catch
+		$out.message:="["+$dcName+"] does not carry the token row shape."
+		return $out
+	End try
+	if ($e=Null)
+		$out.message:="No token with id \""+String($tokenId)+"\"."
+		return $out
+	end if
+	$e.isActive:=False
+	if (Not($e.save().success))
+		$out.message:="The token could not be revoked."
+		return $out
+	end if
+	$out.success:=True
+	$out.message:="Token \""+String($tokenId)+"\" revoked."
+	return $out
 
 // _loadTokens: the inline store. Fixtures for the component's own self-tests
 // and for a single-host demo. Keys are raw bearer strings; values are

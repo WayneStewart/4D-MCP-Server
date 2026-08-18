@@ -468,7 +468,32 @@ Function runAll() : Object
 	$res:=This._call($FULL; "query_entities"; New object("dataclass"; "Customer"))
 	This._ok($r; "tokenstore_absent_defaults_inline"; ($res.status=200) && ($res.env.ok=True))
 
+	// 26. issueToken / revokeToken refuse rather than half-succeed. The happy
+	// path writes a row, so it belongs to a host with a real token table; what
+	// is testable here is that a misconfigured component never silently mints a
+	// credential it cannot later read back.
+	var $iss : Object
+	$iss:=cs.MCP_Auth.me.issueToken("nope"; New object("read"; "*"))
+	This._ok($r; "issue_no_table_refused"; ($iss.success=False) && (Length($iss.token)=0))
+	$iss:=cs.MCP_Auth.me.issueToken(""; New object("read"; "*"))
+	This._ok($r; "issue_blank_id_refused"; ($iss.success=False) && (Length($iss.token)=0))
+
+	// TOKEN_TABLE naming a table without the row shape: refused, not thrown,
+	// and above all no token string handed back for a row that was never saved.
+	$cfgTable:=JSON Parse($cfgOrig)
+	$cfgTable.TOKEN_STORE.value:="table"
+	$cfgTable.TOKEN_TABLE.value:="Secret"
+	$cfgFile.setText(JSON Stringify($cfgTable))
+	$iss:=cs.MCP_Auth.me.issueToken("wrongshape"; New object("read"; "*"))
+	This._ok($r; "issue_wrong_shape_refused"; ($iss.success=False) && (Length($iss.token)=0))
+	var $rev : Object
+	$rev:=cs.MCP_Auth.me.revokeToken("wrongshape")
+	This._ok($r; "revoke_wrong_shape_refused"; ($rev.success=False))
+
 	$cfgFile.setText($cfgOrig)
+	$rev:=cs.MCP_Auth.me.revokeToken("anything")
+	This._ok($r; "revoke_no_table_refused"; ($rev.success=False))
+
 	$res:=This._call($FULL; "query_entities"; New object("dataclass"; "Customer"))
 	This._ok($r; "tokenstore_config_restored_200"; ($res.status=200) && ($res.env.ok=True))
 
