@@ -7,8 +7,10 @@
 # Default BASE_URL: http://localhost:8044/mcp
 #
 # Fixture tokens (see cs.MCP_Auth._loadTokens):
-#   SECRET_FULL  read [Customer,Order] write [Order] call [ping,order_count]
-#   SECRET_RO    read [Customer]       (no write, no call)
+#   SECRET_FULL  read [Customer,Order] write [Order]
+#   SECRET_RO    read [Customer]       (no write)
+# Neither carries a call grant — no token does. call_method is gated only by
+# ALLOW_CALL_METHOD + METHOD_WHITELIST, so both tokens reach the same actions.
 
 set -u
 BASE="${1:-http://localhost:8044/mcp}"
@@ -109,9 +111,13 @@ check "CAP_DENIED.read" 403 "error.code" "CAP_DENIED"
 req "$FULL" '{"v":1,"action":"create_entity","params":{"dataclass":"Customer","values":{"name":"x"}}}'
 check "CAP_DENIED.write" 403 "error.code" "CAP_DENIED"
 
-# CAP_DENIED — call action not in registry / token
+# CAP_DENIED — call action not in METHOD_WHITELIST (the only call gate)
 req "$FULL" '{"v":1,"action":"call_method","params":{"name":"no_such_action"}}'
 check "CAP_DENIED.call" 403 "error.code" "CAP_DENIED"
+
+# call_method is NOT per-token: the read-only token calls a whitelisted action
+req "$RO" '{"v":1,"action":"call_method","params":{"name":"ping"}}'
+check "call.ro_allowed" 200 "data.result.pong" "True"
 
 # BAD_VERSION
 req "$FULL" '{"v":2,"action":"get_schema_digest","params":{}}'

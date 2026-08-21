@@ -10,8 +10,9 @@ shared singleton Class constructor()
 
 // digest: the dataclasses the server config exposes, narrowed to the token's
 // read grant ("*" = all exposed; a list intersects). callable_actions lists
-// the METHOD_WHITELIST entries the token may call — the spec minus the host
-// `method` name, which never crosses the wire.
+// every METHOD_WHITELIST entry — the spec minus the host `method` name, which
+// never crosses the wire. Callable actions are NOT narrowed by the token:
+// method reach is a deployment decision, identical for every bearer.
 Function digest($cap : Object) : Object
 	var $result : Object
 	$result:=New object("dataclasses"; New collection)
@@ -28,7 +29,7 @@ Function digest($cap : Object) : Object
 		end if
 		$result.dataclasses.push(This._dataclassDigest($name; $respect; $exposed))
 	End for each
-	$result.callable_actions:=This._callableActions($cap)
+	$result.callable_actions:=This._callableActions()
 	return $result
 
 // exposedDataclasses: the set of dataclass names the server config exposes,
@@ -312,9 +313,13 @@ Function _isNumeric($t : Text) : Boolean
 	End for
 	return True
 
-// _callableActions: the intersection of the config METHOD_WHITELIST and the
-// token's call capability, as client-facing specs {name, args, return, purpose}.
-Function _callableActions($cap : Object) : Collection
+// _callableActions: every entry of the config METHOD_WHITELIST, as client-
+// facing specs {name, args, return, purpose}. Empty when ALLOW_CALL_METHOD is
+// off or the whitelist is absent/malformed — those are the only two filters.
+// Note this advertises what the DEPLOYMENT permits; whether the underlying
+// host method is actually "Shared with components and host" is 4D's own gate
+// and is only discoverable by calling it.
+Function _callableActions() : Collection
 	var $out : Collection
 	$out:=New collection
 	var $config : Object
@@ -328,16 +333,8 @@ Function _callableActions($cap : Object) : Collection
 	if (Value type($config.METHOD_WHITELIST)#Is object)
 		return $out
 	end if
-	var $callable : Collection
-	$callable:=$cap.call
-	if ($callable=Null)
-		return $out
-	end if
 	var $name : Text
 	For each ($name; $config.METHOD_WHITELIST)
-		if ($callable.indexOf($name)<0)
-			continue
-		end if
 		var $spec : Object
 		$spec:=$config.METHOD_WHITELIST[$name]
 		var $entry : Object

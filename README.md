@@ -1,6 +1,6 @@
 # 4D Data MCP
 
-An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server for 4D databases. It lets an MCP client — Claude Code, Claude Desktop, or any other MCP-capable tool — discover a 4D application's schema, query and modify its data through ORDA, and call whitelisted project methods, all gated by per-token capabilities enforced inside 4D.
+An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server for 4D databases. It lets an MCP client — Claude Code, Claude Desktop, or any other MCP-capable tool — discover a 4D application's schema, query and modify its data through ORDA, and call whitelisted project methods — data access gated by per-token capabilities, method access by the deployment config, both enforced inside 4D.
 
 The system is built as two cooperating halves joined by a versioned HTTP wire contract:
 
@@ -21,11 +21,11 @@ Half B — 4d-mcp-server/         4D component: HTTP handler + ORDA
 
 **Half A** (`mcp-server/`) is a thin Node.js translator. It speaks MCP over stdio to the client and exposes one tool per wire action (`4d_get_schema_digest`, `4d_query_entities`, `4d_get_entity`, `4d_create_entity`, `4d_update_entity`, `4d_delete_entity`, `4d_call_method`). Every tool call is wrapped in a JSON envelope and forwarded as `POST /mcp` with a Bearer token. It holds no logic of its own beyond envelope construction, response validation, and error mapping — it surfaces exactly what Half B allows.
 
-**Half B** (`4d-mcp-server/`) is a 4D component installed in the host application. Its `POST /mcp` handler authenticates the Bearer token, resolves it to a capability object (which dataclasses it may read/write, which actions it may call), applies the deployment-config gates (enable flags, HTTPS requirement, body-size limit, rate limiting, table exposure), then routes to the matching ORDA operation against the host's `ds`. All security enforcement lives here, on the 4D side.
+**Half B** (`4d-mcp-server/`) is a 4D component installed in the host application. Its `POST /mcp` handler authenticates the Bearer token, resolves it to a capability object (which dataclasses it may read/write), applies the deployment-config gates (enable flags, HTTPS requirement, body-size limit, rate limiting, table exposure, callable methods), then routes to the matching ORDA operation against the host's `ds`. All security enforcement lives here, on the 4D side.
 
 The contract between them — envelope shape, the eight actions, the error taxonomy, pagination rules — is specified in **`ai-context/mcp_data_wire_contract.md` (v1)**, which is the source of truth for both halves. Either half can be tested against it independently: Half A's unit tests run against a canned fixture standing in for 4D, and Half B's curl suite exercises the real HTTP path without any MCP client.
 
-A typical session: the client calls `4d_get_schema_digest` to learn which dataclasses and callable actions its token can see, then queries/creates/updates entities or invokes whitelisted methods. Contract errors come back as typed codes (`CAP_DENIED`, `BAD_PARAMS`, `NOT_FOUND`, ...) so the model can react sensibly.
+A typical session: the client calls `4d_get_schema_digest` to learn which dataclasses its token can see and which actions the deployment exposes, then queries/creates/updates entities or invokes whitelisted methods. Contract errors come back as typed codes (`CAP_DENIED`, `BAD_PARAMS`, `NOT_FOUND`, ...) so the model can react sensibly.
 
 ## Repository layout
 
@@ -62,11 +62,11 @@ Requires **4D 20 R8+** (HTTP request handlers).
 
    > On first run this copies the default deployment config `4D-mcp-config.pref` into the host's `Project/Sources/`, then starts the component's own web server on the config's `HTTP_PORT` (default **8044**; set `0` to serve `/mcp` from the host's main web server instead). The call is idempotent and safe to re-run.
 
-4. **Configure tokens and exposure.** Edit `4D-mcp-config.pref` in the host's `Project/Sources/`:
+4. **Configure exposure and method access.** Edit `4D-mcp-config.pref` in the host's `Project/Sources/`:
    - Table exposure and verb gates (`ENABLED`, `ALLOW_READ/WRITE/DELETE`, `ALLOW_CALL_METHOD`).
    - `METHOD_WHITELIST` — maps client-facing action names to host project methods for `4d_call_method`.
 
-   Tokens map a Bearer string to a capability object (readable/writable dataclasses, callable actions); v1 defines them in `MCP_Auth._loadTokens()`, swappable for a table-backed store. See the [Half B README](ai-context/README_halfB.md) for the exact shapes.
+5. **Mint a token.** Add a token dataclass to the host, point `TOKEN_TABLE` at it, and mint the first credential with `cs.mcp4d.MCP_Auth.me.issueToken(...)`, then set `TOKEN_STORE` to `"table"`. Until you do, the deployment runs on the component's demo tokens — see [Tokens & capabilities](#tokens--capabilities) for the row shape and why that order matters.
 
 ### Half A — the Node MCP server
 
@@ -135,8 +135,11 @@ You can expose methods in the 4D host via the MCP server. This can be particular
 To be exposed a method must:
 - have the 'Shared with components and Host' property set to true
 - set `ALLOW_CALL_METHOD` to `true` in `4D-mcp-config.pref`
-- add each method to `METHOD_WHITELIST` in `4D-mcp-config.pref`
-- add each method's whitelist name to the relevant token's `call` collection in `MCP_Auth._loadTokens()` — a token's own capability list is separate from `METHOD_WHITELIST` and defaults to empty, so a method can be fully whitelisted at the deployment level and still be unreachable by a given token
+- be listed in `METHOD_WHITELIST` in `4D-mcp-config.pref`
+
+That is the entire permission model, and all three conditions are properties of the *deployment*, not of the caller. **No token grant is involved.** Any Bearer token that authenticates — including a read-only one — may invoke every whitelisted action. Scope what `call_method` reaches by editing the whitelist; there is no way to hand one token a narrower set of methods than another.
+
+The first condition is the one the component cannot check for you: `ALLOW_CALL_METHOD` and `METHOD_WHITELIST` are config it reads, while 'shared' is a property of the host method that only 4D sees at execution time. A whitelisted action whose method is not shared fails at `EXECUTE METHOD` and comes back as `INTERNAL`, not `CAP_DENIED` — if an action you just added answers `INTERNAL` with nothing in the host log, check the shared property first.
 
 Enabling methods is not quick and easy and that's a good thing. It's an incredibly powerful option and you really want to be careful when you do it. 
 
@@ -204,19 +207,98 @@ This is added to the config json with a name to use with the AI. You can use the
 Every request carries a Bearer token, which `MCP_Auth` resolves to a capability object:
 
 ```
-{ token_id: Text; read: []Text | "*"; write: []Text | "*"; call: []Text }
+{ token_id: Text; read: []Text | "*"; write: []Text | "*" }
 ```
 
 - **`read`/`write`** are either the wildcard `"*"` (every dataclass the deployment config exposes) or an explicit list of dataclass names. An absent verb normalizes to no access.
-- **`call`** is an explicit list of client-facing action names (the keys you defined in `METHOD_WHITELIST`, not the underlying 4D method names) that this specific token is allowed to invoke.
 
-**`call` is a second, independent gate on top of `METHOD_WHITELIST` — both must agree.** `METHOD_WHITELIST` + `ALLOW_CALL_METHOD` control what the *deployment* is willing to run for anyone; a token's own `call` list controls what *that token* is allowed to reach within that set. Whitelisting a method deployment-wide does nothing for a token whose `call` list doesn't also name it — you'll get `CAP_DENIED: Token cannot call action`, distinct from `CAP_DENIED: Action not enabled in server config` (which means the deployment-level gate failed instead). The two error messages tell you which side to fix.
+**A capability covers data access only.** It says nothing about `call_method`: there is no `call` grant, and a token needs none. Which methods are reachable is settled entirely by `ALLOW_CALL_METHOD` + `METHOD_WHITELIST` (see [Exposing 4D Methods](#exposing-4d-methods)), and that answer is the same for every valid token. The one failure you can get is `CAP_DENIED: Action not enabled in server config`, which always means the deployment gate, never the caller.
 
-### Where tokens live today
+### Where tokens live
 
-v1 defines every token inline, hardcoded, in `MCP_Auth._loadTokens()` — the bearer string itself is the object key, e.g. `"SECRET_STAR"`. There is no generation step, no expiry, no revocation short of editing and redeploying that method. This is a fixture-grade mechanism, closer to a handful of shared API keys than to session tokens, and it currently requires component source access to change.
+`TOKEN_STORE` in `4D-mcp-config.pref` picks one of two stores. Any value other
+than these two resolves no token at all.
 
-**This means an end user of the host database — someone who only has the compiled/installed component, not its project source — cannot mint, edit, or revoke a token themselves.** Provisioning a new token, or changing what an existing one can reach, is a code change made by whoever maintains the component, not a configuration step available from the host application. If self-service token management is needed, `_loadTokens()` is designed to be swapped for a table-backed store (`TOKEN_STORE: "table"` is already stubbed in `4D-mcp-config.pref`) — but as of this writing that swap hasn't been implemented, and even once it is, it would need real generation/expiry logic added on top, not just the same static lookup moved into a table (tracked in `ai-context/TODO.md`).
+| `TOKEN_STORE` | Tokens live in | Editable by |
+|---|---|---|
+| `"inline"` (default, and the value when the key is absent) | `MCP_Auth._loadTokens()`, hardcoded in component source | whoever can rebuild the component |
+| `"table"` | the host dataclass named by `TOKEN_TABLE` | anyone who can run a method in the host |
+
+**`"table"` is what a deployment should use.** `"inline"` exists for the
+component's own self-tests and for a single-host demo; its bearer strings are
+literals in source shared by every host that installs the component.
+
+> **The shipped default is `"inline"`, which means a fresh install honors the
+> demo tokens** — including `SECRET_STAR`, a read/write wildcard over every
+> exposed dataclass. Set `TOKEN_STORE` to `"table"` (and mint a real token,
+> below) before the endpoint is reachable by anything you care about.
+
+#### The token table
+
+`TOKEN_TABLE` names a host dataclass whose rows are:
+
+| Attribute | Type | What it holds |
+|---|---|---|
+| `tokenHash` | Text | SHA-256 hex of the bearer, from `MCP_Auth.hashToken()` |
+| `tokenId` | Text | the audit label — what the request and audit logs record |
+| `grants` | Object | `{ read; write }`, the capability shape above |
+| `isActive` | Boolean | `false` = revoked |
+
+**The bearer itself is never stored.** Only its digest is, so a leaked data file
+yields nothing usable and a lost token is reissued under a new id rather than
+recovered.
+
+Two safety properties are worth knowing because they change how a
+misconfiguration behaves:
+
+- **Fail closed.** `TOKEN_STORE: "table"` with a `TOKEN_TABLE` that is blank,
+  misspelled, or missing the row shape validates *no* token — it never falls
+  back to the inline set. A production host quietly honoring `SECRET_STAR`
+  because someone fat-fingered a table name is the outcome this rules out. The
+  symptom is every request returning `AUTH_DENIED`.
+- **The token table is never readable through the API it guards.** It is
+  removed from the exposed set after every other exposure rule, including
+  `WHITELIST_TABLES` — which otherwise overrides everything and would be the
+  one way to publish it by name.
+
+#### Minting and revoking
+
+Both live in the component, and neither is reachable over the wire —
+`call_method` invokes host project methods only, and the token table is
+excluded from exposure regardless. Run them from the host's method editor, or
+wrap them in a host method that logs the result:
+
+```4d
+  // mint — the token is shown ONCE and never again
+$res:=cs.mcp4d.MCP_Auth.me.issueToken("tok_reporting"; \
+	New object("read"; New collection("Customer"; "Order"); "write"; New collection))
+  // -> {success; message; token: "mcp_<64 hex>"; tokenId}
+
+  // revoke — flips isActive, keeps the row
+$res:=cs.mcp4d.MCP_Auth.me.revokeToken("tok_reporting")
+```
+
+`issueToken` refuses rather than half-succeeding: a blank id, a duplicate
+`tokenId`, an unresolvable `TOKEN_TABLE`, or a table missing the row shape all
+come back `success: false` with a message naming the problem. Revoking flips
+`isActive` instead of deleting the row, so the record that the credential
+existed survives the revocation.
+
+Both resolve `TOKEN_TABLE` *without* checking `TOKEN_STORE`, deliberately: you
+create the first row while the store is still `"inline"`, then throw the
+switch. The other order locks every client out until a row exists that cannot
+yet be created.
+
+#### What token management still does not do
+
+- **No expiry.** There is no `expiresAt` and nothing checks one. A token is
+  valid until someone revokes it.
+- **No rotation, no TTL, no scopes beyond `read`/`write`.** `isActive` is the
+  entire lifecycle.
+- **Changing what a token may reach means editing its `grants` row directly** —
+  there is no `updateToken`.
+
+Tracked in `ai-context/TODO.md`.
 
 ## Documentation
 

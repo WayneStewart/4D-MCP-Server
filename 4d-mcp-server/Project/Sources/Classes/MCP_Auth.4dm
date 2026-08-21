@@ -4,23 +4,29 @@
 //   "inline" (or absent) -> _loadTokens(), the in-memory object below. Demo and
 //     test fixtures live here; editing them means editing this component.
 //   "table" -> TOKEN_TABLE names a HOST dataclass. Tokens and their grants
-//     become DATA, so granting a project a new action is a row edit, not a
+//     become DATA, so widening a project's data access is a row edit, not a
 //     component change. This is the store real deployments should use: a
 //     component shared by several host projects cannot carry their tokens.
 //
 // Capability shape (wire contract 2):
-//   { token_id: Text; read: []Text | "*"; write: []Text | "*"; call: []Text }
+//   { token_id: Text; read: []Text | "*"; write: []Text | "*" }
 // read/write may be the wildcard "*" — every dataclass the server config
 // exposes (RESPECT_4D_SCHEMA / WHITELIST_TABLES / BLACKLIST_TABLES). Exposure
 // is enforced upstream by the config gate; the wildcard never widens it.
 // Absent verb entry is normalized to an empty collection (no access).
-// `call` takes NO wildcard: read/write are bounded by the exposure gate, but a
-// call grant is bounded only by METHOD_WHITELIST, so it is enumerated always.
+//
+// A capability says NOTHING about call_method. Which methods are reachable is
+// a deployment question, answered entirely by ALLOW_CALL_METHOD and
+// METHOD_WHITELIST in 4D-mcp-config.pref (plus 4D's own rule that the host
+// method carry "Shared with components and host"). No token carries a `call`
+// grant, and no token needs one: any token that authenticates may invoke any
+// whitelisted action. A `grants.call` key left on an existing token row is
+// simply ignored.
 //
 // TABLE ROW SHAPE (the dataclass named by TOKEN_TABLE):
 //   tokenHash : Text    SHA-256 of the bearer, hex. See hashToken().
 //   tokenId   : Text    the audit label; what logs record.
-//   grants    : Object  { read; write; call } — the capability shape above.
+//   grants    : Object  { read; write } — the capability shape above.
 //   isActive  : Boolean false = revoked; refused without deleting the audit row.
 // The bearer itself is NEVER stored. A host that keeps plaintext tokens in a
 // table has moved the secret from source control into the data file, which is
@@ -103,8 +109,7 @@ Function _tableToken($config : Object; $token : Text) : Object
 	return New object(\
 		"token_id"; String($e.tokenId); \
 		"read"; $grants.read; \
-		"write"; $grants.write; \
-		"call"; $grants.call)
+		"write"; $grants.write)
 
 // tokenTableName: TOKEN_TABLE resolved to the datastore's canonical casing, or
 // "" when the store is not table-backed or the name does not resolve. Public
@@ -152,7 +157,7 @@ Function hashToken($token : Text) : Text
 // reissued under a new id, never recovered.
 //
 // THIS LIVES IN THE COMPONENT ON PURPOSE. Everything it has to get right is
-// this class's business: the digest algorithm, the {read; write; call} row
+// this class's business: the digest algorithm, the {read; write} row
 // shape, what isActive means. A host-side copy per project is the same method
 // written N times, and the first edit to one of them puts a row in a shape
 // MCP_Auth no longer reads — with no error to explain why a valid-looking token
@@ -163,10 +168,9 @@ Function hashToken($token : Text) : Text
 // from the method editor, or wraps it in a host method to log the result.
 //
 //   $tokenId  audit label, unique by convention. What logs record.
-//   $grants   { read; write; call }. read/write are "*" or a collection of
-//             dataclass names; call is a collection of ACTION names from
-//             METHOD_WHITELIST — never host method names, which never cross
-//             the wire, and never "*", which `call` does not accept.
+//   $grants   { read; write }. Each is "*" or a collection of dataclass names.
+//             There is no `call` grant: method reach is set in the deployment
+//             config, not per token.
 Function issueToken($tokenId : Text; $grants : Object) : Object
 	var $out : Object
 	$out:=New object("success"; False; "message"; ""; "token"; ""; "tokenId"; String($tokenId))
@@ -204,11 +208,10 @@ Function issueToken($tokenId : Text; $grants : Object) : Object
 	$token:="mcp_"+Replace string(Generate UUID; "-"; "")+Replace string(Generate UUID; "-"; "")
 
 	var $norm : Object
-	$norm:=New object("read"; New collection; "write"; New collection; "call"; New collection)
+	$norm:=New object("read"; New collection; "write"; New collection)
 	if ($grants#Null)
 		$norm.read:=$grants.read
 		$norm.write:=$grants.write
-		$norm.call:=$grants.call
 	end if
 
 	var $e : Object
@@ -267,32 +270,28 @@ Function revokeToken($tokenId : Text) : Object
 Function _loadTokens() : Object
 	var $t : Object
 	$t:=New object
-	// Full access: read both dataclasses, write Order, call two actions.
+	// Full access: read both dataclasses, write Order.
 	$t["SECRET_FULL"]:=New object(\
 		"token_id"; "tok_full"; \
 		"read"; New collection("Customer"; "Order"); \
-		"write"; New collection("Order"); \
-		"call"; New collection("ping"; "order_count"; "echo_upper"))
-	// Read-only, Customer only: no write, no call.
+		"write"; New collection("Order"))
+	// Read-only, Customer only: no write.
 	$t["SECRET_RO"]:=New object(\
 		"token_id"; "tok_ro"; \
 		"read"; New collection("Customer"); \
-		"write"; New collection; \
-		"call"; New collection)
+		"write"; New collection)
 	// HPC4d trial: read-only on core business tables. Deliberately excludes
 	// payroll, passwords, W2 and other sensitive dataclasses.
 	$t["SECRET_HPC_RO"]:=New object(\
 		"token_id"; "tok_hpc_ro"; \
 		"read"; New collection("customers"; "workOrder"; "lineItem"; "header"); \
-		"write"; New collection; \
-		"call"; New collection)
+		"write"; New collection)
 	// Wildcard: read/write everything the server config exposes. Exposure
 	// (RESPECT_4D_SCHEMA / WHITELIST / BLACKLIST) is the only table filter.
 	$t["SECRET_STAR"]:=New object(\
 		"token_id"; "tok_star"; \
 		"read"; "*"; \
-		"write"; "*"; \
-		"call"; New collection("ping"; "order_count"; "echo_upper"))
+		"write"; "*")
 	return $t
 
 Function _normalize($cap : Object) : Object
@@ -301,7 +300,6 @@ Function _normalize($cap : Object) : Object
 	$out.token_id:=String($cap.token_id)
 	$out.read:=This._asGrant($cap.read)
 	$out.write:=This._asGrant($cap.write)
-	$out.call:=This._asCollection($cap.call)
 	return $out
 
 // _asGrant: a read/write grant is either the wildcard "*" or a collection of

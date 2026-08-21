@@ -25,6 +25,9 @@
 //   5b. token capability for action (_checkCapability) -> CAP_DENIED (403).
 //       Denial messages at 5a/5b are identical ("Access denied") so a token
 //       cannot distinguish "hidden" from "ungranted" and map the schema.
+//       call_method has no 5b gate: which methods are reachable is settled
+//       entirely at 5a by ALLOW_CALL_METHOD + METHOD_WHITELIST, so every
+//       valid token reaches the same set.
 //   6. execute                 -> success | NOT_FOUND | QUERY_ERROR | INTERNAL
 //
 // Envelopes (1): success {v,ok:true,data,meta?}; error {v,ok:false,error:{code,message}}.
@@ -593,11 +596,10 @@ Function _checkCapability($action : Text; $params : Object; $cap : Object) : Tex
 			end if
 			return ""
 		: ($action="call_method")
-			// Whitelist membership is the config gate's job (_checkConfigGate);
-			// here only the token capability is checked.
-			if ($cap.call.indexOf(String($params.name))<0)
-				return "Token cannot call action: "+String($params.name)
-			end if
+			// No per-token gate, by design. What may be called is a deployment
+			// decision (ALLOW_CALL_METHOD + METHOD_WHITELIST, enforced in
+			// _checkConfigGate), not a property of the bearer: any token that
+			// authenticates may invoke any whitelisted action.
 			return ""
 	End case
 	return ""
@@ -608,7 +610,10 @@ Function _checkCapability($action : Text; $params : Object; $cap : Object) : Tex
 // ALLOW_WRITE gates create_entity / update_entity.
 // ALLOW_DELETE gates delete_entity.
 // ALLOW_CALL_METHOD gates call_method globally; METHOD_WHITELIST is the
-// filtered subset of action names callable when it is true.
+// complete set of action names callable when it is true — the only such set,
+// since no token carries a call grant. 4D adds one rule this code cannot see:
+// the host method must be "Shared with components and host" or EXECUTE METHOD
+// never reaches it (surfaces as INTERNAL from MCP_DataAccess.call_method).
 // Table exposure (RESPECT_4D_SCHEMA / WHITELIST_TABLES / BLACKLIST_TABLES)
 // is a config concern, so it is enforced here too: an entity action on an
 // unexposed dataclass is CAP_DENIED regardless of the token. When

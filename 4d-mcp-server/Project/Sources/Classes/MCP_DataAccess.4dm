@@ -256,6 +256,14 @@ Function delete_entity($params : Object) : Object
 	// spec's arg names are documentation for the client). Anything not in the
 	// map is unreachable. Arity/type validation happens in MCP_Handler gate 4;
 	// this function owns only execution.
+	//
+	// No token is consulted here or anywhere upstream for call_method: the
+	// whitelist plus ALLOW_CALL_METHOD is the whole permission model.
+	// 4D imposes a third condition this code cannot inspect — the host method
+	// must have "Shared with components and host" set, or EXECUTE METHOD never
+	// finds it. That failure lands in the Catch below and returns INTERNAL, so
+	// a whitelisted action that answers INTERNAL with nothing in the host log
+	// is almost always an unshared method.
 Function call_method($params : Object) : Object
 	var $name : Text
 	$name:=String($params.name)

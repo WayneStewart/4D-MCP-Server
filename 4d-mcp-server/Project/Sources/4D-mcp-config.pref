@@ -24,11 +24,11 @@
   "value": true
  },
  "ALLOW_CALL_METHOD": {
-  "comment": "Global gate for call_method. When false, METHOD_WHITELIST is ignored entirely.",
+  "comment": "Global gate for call_method. When false, METHOD_WHITELIST is ignored entirely. Together with METHOD_WHITELIST this is the WHOLE permission model for calling methods \u2014 tokens carry no per-method grant, so every valid token reaches the same set.",
   "value": true
  },
  "METHOD_WHITELIST": {
-  "comment": "Map of client-visible action name -> {method, args, return, purpose}. `method` is the HOST project method call_method executes (never sent to clients); `args` is the ORDERED positional parameter spec, each {name, type, required, purpose} with type one of text|number|boolean|object|collection (optional args trailing-only); `return` and `purpose` are documentation surfaced to clients via get_schema_digest. Empty = nothing callable. SECURITY: every entry here hands clients a door into host code \u2014 whoever can edit this file controls what call_method reaches.",
+  "comment": "Map of client-visible action name -> {method, args, return, purpose}. `method` is the HOST project method call_method executes (never sent to clients); `args` is the ORDERED positional parameter spec, each {name, type, required, purpose} with type one of text|number|boolean|object|collection (optional args trailing-only); `return` and `purpose` are documentation surfaced to clients via get_schema_digest. Empty = nothing callable. A whitelisted method must ALSO have 4D's \"Shared with components and host\" property set, or EXECUTE METHOD cannot reach it and the call answers INTERNAL. SECURITY: every entry here hands clients a door into host code \u2014 whoever can edit this file controls what call_method reaches, for every token.",
   "value": {
    "ping": {
     "method": "MCP_Fixture_Ping",
@@ -96,7 +96,7 @@
   "value": "inline"
  },
  "TOKEN_TABLE": {
-  "comment": "Host dataclass holding token records when TOKEN_STORE is 'table'. Row shape: tokenHash (Text, SHA-256 hex of the bearer as produced by MCP_Auth.hashToken - the bearer itself is never stored), tokenId (Text, audit label), grants (Object: {read; write; call} per wire contract 2), isActive (Boolean, false = revoked). Blank or unresolvable while TOKEN_STORE is 'table' means NO token validates - it never falls back to the inline set. This dataclass is force-excluded from the exposed set, so no token can read it through the API, WHITELIST_TABLES notwithstanding.",
+  "comment": "Host dataclass holding token records when TOKEN_STORE is 'table'. Row shape: tokenHash (Text, SHA-256 hex of the bearer as produced by MCP_Auth.hashToken - the bearer itself is never stored), tokenId (Text, audit label), grants (Object: {read; write} per wire contract 2 \u2014 there is no call grant; method reach is set by ALLOW_CALL_METHOD + METHOD_WHITELIST, not per token), isActive (Boolean, false = revoked). Blank or unresolvable while TOKEN_STORE is 'table' means NO token validates - it never falls back to the inline set. This dataclass is force-excluded from the exposed set, so no token can read it through the API, WHITELIST_TABLES notwithstanding.",
   "value": ""
  },
  "RATE_LIMIT": {

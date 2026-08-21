@@ -32,7 +32,7 @@ MCP client (Claude Code / Desktop)
 
 | Tool | Wire action |
 |------|-------------|
-| `4d_get_schema_digest` | `get_schema_digest` — dataclasses + callable actions for this token |
+| `4d_get_schema_digest` | `get_schema_digest` — dataclasses for this token, plus the deployment's callable actions |
 | `4d_query_entities` | `query_entities` — ORDA filter with `:1` placeholders, offset paging (cap 80) |
 | `4d_get_entity` | `get_entity` |
 | `4d_create_entity` | `create_entity` |
@@ -98,7 +98,8 @@ FOURD_MCP_URL=http://localhost:8044/mcp FOURD_MCP_TOKEN=SECRET_FULL \
   npx tsx test/stdio-smoke.ts
 ```
 
-The integration suite assumes the fixture datastore (`Customer`/`Order`) and
-the `SECRET_FULL` token (read Customer+Order, write Order, call
-`ping`/`order_count`/`echo_upper`). It creates, updates, and deletes its own
-Order row and cleans up after itself.
+The integration suite assumes the fixture datastore (`Customer`/`Order`), the
+`SECRET_FULL` token (read Customer+Order, write Order), and the three fixture
+actions `ping`/`order_count`/`echo_upper` in Half B's `METHOD_WHITELIST` —
+callable by any valid token, since tokens carry no per-method grant. It
+creates, updates, and deletes its own Order row and cleans up after itself.

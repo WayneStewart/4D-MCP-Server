@@ -63,8 +63,7 @@ The Bearer token resolves 4D-side to a **capability object**:
 {
   "token_id": "tok_abc",
   "read":  ["Customer", "Order", "Product"],
-  "write": ["Order"],
-  "call":  ["recalc_totals", "get_open_invoices"]
+  "write": ["Order"]
 }
 ```
 
@@ -72,8 +71,11 @@ The Bearer token resolves 4D-side to a **capability object**:
   or the wildcard string `"*"` meaning *every dataclass the server config
   exposes*. Only the exact one-character string `"*"` is a wildcard; any other
   string value normalizes to no access.
-- `call` — array of **whitelisted action names** (not 4D method names) the token may invoke via `call_method`.
 - Empty array = no access to that verb. Absent key treated as empty array.
+- There is **no `call` capability**. A token grants no access to `call_method`
+  and denies none: which actions are reachable is fixed by the deployment
+  config (`ALLOW_CALL_METHOD` + `METHOD_WHITELIST`) and is identical for every
+  valid token. A `call` key on a stored token record is ignored.
 
 **Table exposure (server config, bounds every token including `"*"`):** the
 deployment config decides which dataclasses exist as far as clients are
@@ -107,7 +109,9 @@ whose target dataclass is unexposed are omitted from the digest.
    `ALLOW_DELETE` / `ALLOW_CALL_METHOD`, `METHOD_WHITELIST`) are checked here,
    ahead of the token's own capability list — they gate on which *verb* is
    being requested, which isn't known until gate 3 resolves the action, so
-   they cannot run at gate 0.
+   they cannot run at gate 0. For `call_method` the config gate is the whole
+   of gate 5: there is no token-capability half, so the request either clears
+   `ALLOW_CALL_METHOD` + `METHOD_WHITELIST` or is denied.
 6. Execute → success or `NOT_FOUND` / `QUERY_ERROR` / `INTERNAL`.
 
 ---
@@ -157,7 +161,7 @@ YAML/JSON digest shape from the `4d-catalog` workflow.
 }
 ```
 
-`callable_actions` lists the `call_method` actions this token may call (the intersection of the server's `METHOD_WHITELIST` and the token's `call` capability), as client-facing specs — the underlying host method name is never included. Empty when `call_method` is disabled server-side or the token can call nothing.
+`callable_actions` lists every entry of the server's `METHOD_WHITELIST` as client-facing specs — the underlying host method name is never included. It is **not** narrowed by the token, so all tokens see the same list. Empty only when `call_method` is disabled server-side (`ALLOW_CALL_METHOD` false) or the whitelist is empty.
 
 ---
 
@@ -295,9 +299,11 @@ Missing key → `NOT_FOUND`. Blocked by trigger/relation → `QUERY_ERROR`.
 
 Invoke a **whitelisted host method**. The client names an *action name*, never a 4D method name. The 4D-side deployment config (`METHOD_WHITELIST`) holds the map `{ action_name → {method, args, return, purpose} }`, where `method` is a host project method executed via `EXECUTE METHOD`; anything not in the map is unreachable, and `method` never crosses the wire.
 
-`args` on the wire is a **collection, bound positionally** to the host method's parameters (4D method params are positional). The whitelist entry's `args` spec is ordered — each `{name, type, required, purpose}` with `type` ∈ `text|number|boolean|object|collection`; `name` is documentation for the client, position is what binds. Optional args are trailing-only. Arity/type violations against the spec → `BAD_PARAMS` (gate 4, before capability). Callable actions and their specs are discoverable per-token via `get_schema_digest.callable_actions` (§3.1).
+`args` on the wire is a **collection, bound positionally** to the host method's parameters (4D method params are positional). The whitelist entry's `args` spec is ordered — each `{name, type, required, purpose}` with `type` ∈ `text|number|boolean|object|collection`; `name` is documentation for the client, position is what binds. Optional args are trailing-only. Arity/type violations against the spec → `BAD_PARAMS` (gate 4, before capability). Callable actions and their specs are discoverable via `get_schema_digest.callable_actions` (§3.1).
 
-**Capability:** `name` ∈ token `call` **and** `name` ∈ `METHOD_WHITELIST`, else `CAP_DENIED`.
+**Capability:** `ALLOW_CALL_METHOD` is true **and** `name` ∈ `METHOD_WHITELIST`, else `CAP_DENIED`. No token capability is consulted — any bearer that authenticates may invoke any whitelisted action.
+
+**4D-side precondition (not enforceable by this contract):** the host project method behind the action must have 4D's *Shared with components and host* property set, or `EXECUTE METHOD` cannot reach it. A whitelisted action whose method is unshared answers `INTERNAL`, not `CAP_DENIED` — the component cannot inspect the property to say otherwise.
 
 **Request**
 ```json

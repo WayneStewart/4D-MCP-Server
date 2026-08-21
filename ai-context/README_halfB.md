@@ -122,37 +122,107 @@ start a web server.
 
 ## Configuring a token
 
-v1 backs tokens with an in-memory object in `MCP_Auth._loadTokens()`. Each entry
-maps a raw Bearer string to a capability object:
+A Bearer token resolves to a **capability object** covering data access only:
 
-```4d
-$t["SECRET_FULL"]:=New object(\
-    "token_id"; "tok_full"; \
-    "read";  New collection("Customer"; "Order"); \  // dataclasses this token may read
-    "write"; New collection("Order"); \              // dataclasses it may mutate
-    "call";  New collection("ping"; "order_count"))  // whitelisted actions it may call
+```
+{ token_id: Text; read: []Text | "*"; write: []Text | "*" }
 ```
 
-- Absent verb array = no access to that verb.
+- `read`/`write` are the wildcard `"*"` (every dataclass the config exposes) or
+  an explicit collection of dataclass names. Absent, or any other string,
+  normalizes to no access.
 - `attributes` projection is a **client convenience, not a security boundary** —
   gating is at the dataclass level only (contract §6).
-- **`call` is independent of `METHOD_WHITELIST`.** `METHOD_WHITELIST` +
-  `ALLOW_CALL_METHOD` decide what the *deployment* will run for anyone; a
-  token's own `call` collection decides what *that token* may reach within
-  that set — both must name the action. A whitelisted-but-ungranted action
-  fails with `CAP_DENIED: Token cannot call action: <name>` (from
-  `_checkCapability`), distinguishable from `CAP_DENIED: Action not enabled
-  in server config: <name>` (the deployment-level gate in `call_method`
-  itself) — the two messages tell you which side to fix.
-- **No expiry, no generation, no revocation.** Tokens are static strings
-  hardcoded in this method; "issuing" one means adding a literal here and
-  redeploying/reloading the component. There is no session/lifecycle
-  behavior today (tracked in `TODO.md`).
+- **A capability says nothing about `call_method`.** There is no `call` grant.
+  `ALLOW_CALL_METHOD` + `METHOD_WHITELIST` decide what the *deployment* will
+  run, and that decision binds every token identically — a token that
+  authenticates at all may invoke every whitelisted action. Scope what
+  `call_method` can reach by editing the whitelist, never by picking tokens.
+  A `call` key left on an existing token row is ignored.
 
-**Swapping the store:** replace only `_loadTokens()` with a table lookup
-(e.g. `ds.MCP_Token.query(...)`) that returns the same shape. Nothing else
-changes — though note that alone only relocates the same static lookup; real
-expiry/generation/revocation would still need to be built on top.
+### The two stores
+
+`TOKEN_STORE` in `4D-mcp-config.pref` selects where `MCP_Auth._lookup()` reads
+from. Anything other than these two values resolves nothing:
+
+- **`"inline"`** (the default, and the behavior when the key is absent) —
+  `_loadTokens()`, an object keyed by raw bearer string, hardcoded in this
+  component. Fixtures for the self-tests and a single-host demo. Editing them
+  means editing a component that every host loads, and the demo bearers
+  (`SECRET_FULL`, `SECRET_RO`, `SECRET_STAR`) ship into all of them.
+- **`"table"`** — the HOST dataclass named by `TOKEN_TABLE`. What real
+  deployments use: a component shared by several host projects cannot carry
+  their tokens.
+
+Row shape for the token dataclass:
+
+| Attribute | Type | Holds |
+|---|---|---|
+| `tokenHash` | Text | SHA-256 hex of the bearer, from `MCP_Auth.hashToken()` |
+| `tokenId` | Text | audit label; what the request/audit logs record |
+| `grants` | Object | `{ read; write }` — the capability shape above |
+| `isActive` | Boolean | `false` = revoked |
+
+The bearer is never stored, only its digest. `hashToken()` is public precisely
+so any host-side seeding routine hashes identically — were the two to drift,
+every token would fail to validate with nothing to explain why.
+
+**Fail closed.** `"table"` whose `TOKEN_TABLE` is blank, misnamed, or missing
+the row shape resolves NO token and never falls back to the inline set; the
+symptom is a uniform `AUTH_DENIED`. The alternative — a misconfigured
+production host quietly honoring `SECRET_STAR` — is the failure this rules out.
+
+**The token dataclass is force-excluded from the exposed set**
+(`MCP_Schema.exposedDataclasses` → `_dropTokenTable`), applied *after* every
+other exposure rule including `WHITELIST_TABLES`, which overrides the blacklist
+and `RESPECT_4D_SCHEMA` and would otherwise be the one way to publish it by
+name. Without that, a single wildcard read grant returns every other token's
+hashes and grants.
+
+### Minting and revoking
+
+`MCP_Auth.issueToken()` / `.revokeToken()` live in the component on purpose:
+the digest algorithm, the row shape, and the meaning of `isActive` are all this
+class's business, and a host-side copy per project is the same method written N
+times — the first edit to one of them writes a row in a shape `MCP_Auth` no
+longer reads, with no error to explain why a valid-looking token stopped
+validating.
+
+Neither is reachable over the wire: `call_method` invokes host project methods
+only, and the token table is excluded from exposure regardless. Run them from
+the host's method editor, or wrap them in a host method that logs the result.
+
+```4d
+$res:=cs.mcp4d.MCP_Auth.me.issueToken("tok_reporting"; \
+	New object("read"; New collection("Customer"; "Order"); "write"; New collection))
+  // -> {success; message; token; tokenId}
+  // token is "mcp_" + two dashless UUIDs, returned ONCE — only the digest is
+  // stored, so a lost token is reissued under a new id, never recovered.
+
+$res:=cs.mcp4d.MCP_Auth.me.revokeToken("tok_reporting")
+  // -> {success; message}   flips isActive; the row (and the audit trail) stays
+```
+
+`issueToken` refuses rather than half-succeeding — blank id, duplicate
+`tokenId`, unresolvable `TOKEN_TABLE`, or a table without the row shape each
+return `success: false` with a message naming the problem.
+
+Both resolve the table through the **ungated** `_resolveTable()`, not
+`tokenTableName()`. That is deliberate: you create the first row while
+`TOKEN_STORE` is still `"inline"`, then throw the switch. The other order locks
+every client out until a row exists that cannot yet be created. Authentication
+and exposure keep the gated resolver, so a `TOKEN_TABLE` left set beside an
+inline store never quietly goes live.
+
+### What is still missing
+
+- **No expiry.** There is no `expiresAt` attribute and `validate()` checks none.
+  A token is valid until someone revokes it.
+- **No rotation, no TTL, no scope beyond `read`/`write`.** `isActive` is the
+  whole lifecycle.
+- **No `updateToken`.** Re-granting means editing the `grants` object on the row.
+
+Tracked in `TODO.md`.
 
 ## Registering a callable action (`call_method`)
 
@@ -168,9 +238,14 @@ Exposing a HOST method to `call_method` needs **all** of:
    component's own config.
 2. `ALLOW_CALL_METHOD: true` in `4D-mcp-config.pref`.
 3. An entry in `METHOD_WHITELIST` (below).
-4. The calling token's own `call` collection naming the same action (see
-   "Configuring a token" above) — easy to miss, since 1–3 alone will still
-   leave every token `CAP_DENIED`.
+That is the whole list — **no token configuration is involved**. Once 1–3 hold,
+the action is reachable by every valid token; there is nothing per-token left to
+grant, and nothing per-token that can take it away.
+
+Condition 1 is the one this component cannot check for you. `ALLOW_CALL_METHOD`
+and `METHOD_WHITELIST` are config it reads; "shared" is a property of the host
+method that only 4D sees at execution time. A whitelisted action that answers
+`INTERNAL` with nothing in the host log is almost always an unshared method.
 
 The client names an **action_name**, never a 4D method name. The map lives in
 the deployment config (`METHOD_WHITELIST` in `4D-mcp-config.pref`) — each entry
@@ -197,9 +272,11 @@ return New object("count"; ds.Order.query("status = :1"; $status).length)
 ```
 
 Gate 4 validates arity and types against the spec (`BAD_PARAMS`); anything not
-in the map is unreachable (`CAP_DENIED`); a host method that throws → `INTERNAL`
-with the 4D message (never a stack). Tokens discover what they may call — spec
-included, host method name stripped — via `get_schema_digest.callable_actions`.
+in the map is unreachable (`CAP_DENIED: Action not enabled in server config`);
+a host method that throws → `INTERNAL` with the 4D message (never a stack).
+Clients discover the whole whitelist — spec included, host method name stripped
+— via `get_schema_digest.callable_actions`, which is the same list for every
+token.
 The bundled fixtures (`MCP_Fixture_Ping` / `MCP_Fixture_OrderCount` /
 `MCP_Fixture_EchoUpper`) are ordinary host methods registered this way; drop
 them (and their whitelist entries) when embedding.

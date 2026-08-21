@@ -26,11 +26,11 @@
 		"value": false
 	},
 	"ALLOW_CALL_METHOD": {
-		"comment": "Global gate for call_method. When false, METHOD_WHITELIST is ignored entirely.",
+		"comment": "Global gate for call_method. When false, METHOD_WHITELIST is ignored entirely. Together with METHOD_WHITELIST this is the WHOLE permission model for calling methods — tokens carry no per-method grant, so every valid token reaches the same set.",
 		"value": false
 	},
 	"METHOD_WHITELIST": {
-		"comment": "Map of client-visible action name -> {method, args, return, purpose}. `method` is the HOST project method call_method executes (never sent to clients); `args` is the ORDERED positional parameter spec, each {name, type, required, purpose} with type one of text|number|boolean|object|collection (optional args trailing-only); `return` and `purpose` are documentation surfaced to clients via get_schema_digest. Empty = nothing callable. SECURITY: every entry here hands clients a door into host code — whoever can edit this file controls what call_method reaches.",
+		"comment": "Map of client-visible action name -> {method, args, return, purpose}. `method` is the HOST project method call_method executes (never sent to clients); `args` is the ORDERED positional parameter spec, each {name, type, required, purpose} with type one of text|number|boolean|object|collection (optional args trailing-only); `return` and `purpose` are documentation surfaced to clients via get_schema_digest. Empty = nothing callable. A whitelisted method must ALSO have 4D's \"Shared with components and host\" property set, or EXECUTE METHOD cannot reach it and the call answers INTERNAL. SECURITY: every entry here hands clients a door into host code — whoever can edit this file controls what call_method reaches, for every token.",
 		"value": {}
 	},
 
@@ -57,11 +57,11 @@
 	},
 
 	"TOKEN_STORE": {
-		"comment": "Where MCP_Auth resolves Bearer tokens: 'inline' = the object in _loadTokens(); 'table' = look up in the host table named by TOKEN_TABLE.",
+		"comment": "Where MCP_Auth resolves Bearer tokens: 'inline' = the fixture object in MCP_Auth._loadTokens(), editable only by changing this component; 'table' = the host dataclass named by TOKEN_TABLE, which is what real deployments use. Any other value resolves no token at all.",
 		"value": "inline"
 	},
 	"TOKEN_TABLE": {
-		"comment": "Host dataclass holding token records when TOKEN_STORE is 'table'. Must return the same capability shape as _loadTokens().",
+		"comment": "Host dataclass holding token records when TOKEN_STORE is 'table'. Row shape: tokenHash (Text, SHA-256 hex of the bearer as produced by MCP_Auth.hashToken - the bearer itself is never stored), tokenId (Text, audit label), grants (Object: {read; write} per wire contract 2 - there is no call grant; method reach is set by ALLOW_CALL_METHOD + METHOD_WHITELIST, not per token), isActive (Boolean, false = revoked). Blank or unresolvable while TOKEN_STORE is 'table' means NO token validates - it never falls back to the inline set. This dataclass is force-excluded from the exposed set, so no token can read it through the API, WHITELIST_TABLES notwithstanding.",
 		"value": ""
 	},
 	"RATE_LIMIT": {

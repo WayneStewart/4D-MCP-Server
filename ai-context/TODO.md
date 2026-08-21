@@ -31,17 +31,24 @@ stack works end-to-end.
   after `start()` and log honestly when the port is not actually reachable.
   (design_notes_halfB.md quirk 10.)
 
-- [ ] **Token store needs to leave the source.** Adding `SECRET_HPC_RO`
-  required editing `MCP_Auth._loadTokens()` and a full recompile/repackage.
-  Fine for fixtures; wrong for deployments. Implement `TOKEN_STORE: "table"`
-  (already stubbed in the config) or another host-editable store so a
-  deployment can mint/revoke tokens without rebuilding the component.
-  Relatedly (2026-08-04, hand-check fix testing session): tokens today are
-  static hardcoded strings with no issued-at/expiry, no generation step, and
-  no revocation path other than editing/redeploying source — closer to a
-  handful of shared API keys than session tokens. Any `TOKEN_STORE: "table"`
-  implementation should add `expiresAt` (checked in `validate()`) and a real
-  mint/revoke flow, not just relocate the same static lookup into a table.
+- [x] **Token store needs to leave the source.** ~~Adding `SECRET_HPC_RO`
+  required editing `MCP_Auth._loadTokens()` and a full recompile/repackage.~~
+  Done 2026-08-17 (`a5f393c`, `8412c58`): `TOKEN_STORE: "table"` reads the host
+  dataclass named by `TOKEN_TABLE` (rows `{tokenHash, tokenId, grants,
+  isActive}`, bearer stored as SHA-256 only, fail-closed on misconfiguration),
+  and `MCP_Auth.issueToken()` / `.revokeToken()` mint and revoke from the host
+  without rebuilding the component.
+
+- [ ] **Token lifecycle is still just `isActive`.** The remainder of the item
+  above, unimplemented: there is no `expiresAt` attribute and `validate()`
+  checks none, so a token is valid until someone revokes it. No rotation, no
+  TTL, no `updateToken` (re-granting means editing the row's `grants` object).
+
+- [ ] **The shipped default is still `TOKEN_STORE: "inline"`.** A fresh install
+  therefore honors the component's demo bearers, `SECRET_STAR` (read/write
+  wildcard) among them, until the deployment switches to the table store.
+  Decide whether the shipping default should instead be a value that resolves
+  nothing, forcing an explicit choice before the endpoint answers anyone.
 
 - [ ] **Server-side aggregation via `METHOD_WHITELIST`.** A monthly-sales
   rollup took 5 paged `query_entities` calls (80-row cap) plus client-side

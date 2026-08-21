@@ -143,9 +143,11 @@ Function runAll() : Object
 	$res:=This._call($FULL; "call_method"; New object("name"; "no_such_action"))
 	This._ok($r; "call_unknown_capdenied"; ($res.status=403) && ($res.env.error.code="CAP_DENIED"))
 
-	// 18. call_method ping with ro token (empty call list) -> CAP_DENIED
+	// 18. call_method is NOT gated per token. A read-only token calls a
+	// whitelisted action exactly like the full one — ALLOW_CALL_METHOD and
+	// METHOD_WHITELIST are the only gates, and they bind every bearer alike.
 	$res:=This._call($RO; "call_method"; New object("name"; "ping"))
-	This._ok($r; "call_ping_ro_capdenied"; ($res.status=403) && ($res.env.error.code="CAP_DENIED"))
+	This._ok($r; "call_ping_ro_allowed"; ($res.status=200) && ($res.env.data.result.pong=True))
 
 	// 19. AUTH_DENIED — no token, and bad token
 	$res:=New object("status"; 0; "env"; Null)
@@ -393,18 +395,19 @@ Function runAll() : Object
 	$res:=This._call($FULL; "call_method"; New object("name"; "ping"; "args"; New collection("a"; "b")))
 	This._ok($r; "call_too_many_args_badparams"; ($res.status=400) && ($res.env.error.code="BAD_PARAMS"))
 
-	// digest: full token sees the 3 fixture actions, spec sans host method name
+	// digest: every token sees the 3 fixture actions, spec sans host method name
 	$res:=This._call($FULL; "get_schema_digest"; New object)
 	This._ok($r; "digest_callable_actions_3"; ($res.env.data.callable_actions.length=3))
 	This._ok($r; "digest_callable_no_method_leak"; ($res.env.data.callable_actions[0].method=Null))
 	This._ok($r; "digest_callable_has_purpose"; (Length(String($res.env.data.callable_actions[0].purpose))>0))
 
-	// digest: ro token (empty call capability) sees none
+	// digest: the ro token sees the same 3 — callable_actions reports the
+	// deployment's whitelist, which no capability narrows.
 	$res:=This._call($RO; "get_schema_digest"; New object)
-	This._ok($r; "digest_callable_ro_empty"; ($res.env.data.callable_actions.length=0))
+	This._ok($r; "digest_callable_ro_same_3"; ($res.env.data.callable_actions.length=3))
 
 	// 25. TOKEN_STORE routing. The inline store is a component fixture; real
-	// hosts keep tokens in a dataclass so granting an action is a row edit.
+	// hosts keep tokens in a dataclass so widening a grant is a row edit.
 	// Every case here is a FAIL-CLOSED case: the happy path needs a host table
 	// with a tokenHash attribute, which this component's fixture base has no
 	// business carrying — it is covered against the host's real token table.
