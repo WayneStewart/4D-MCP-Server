@@ -14,7 +14,7 @@ Requires **4D 20 R8+** (HTTP request handlers). Ordered-source project.
 |------|------|
 | `Project/Sources/HTTPHandlers.json` | Registers `POST /mcp` → `MCP_Handler.dispatch` — **standalone only**: 4D loads this file only for the main web server, never for a component's own. Embedded, the same handler is registered programmatically by `MCP_Initialize_Host` |
 | `Project/Sources/Classes/MCP_Handler.4dm` | Dispatcher: gate order, envelopes, HTTP adapter |
-| `Project/Sources/Classes/MCP_Auth.4dm` | Token → capability object (swappable store) |
+| `Project/Sources/Classes/MCP_Auth.4dm` | Token → capability object (tokens are literals in this file) |
 | `Project/Sources/Classes/MCP_Schema.4dm` | `get_schema_digest` from ORDA introspection |
 | `Project/Sources/Classes/MCP_DataAccess.4dm` | ORDA CRUD + query + `call_method` registry |
 | `Project/Sources/Classes/MCP_Test.4dm` | In-4D self-test of the full gate chain |
@@ -138,91 +138,35 @@ A Bearer token resolves to a **capability object** covering data access only:
   run, and that decision binds every token identically — a token that
   authenticates at all may invoke every whitelisted action. Scope what
   `call_method` can reach by editing the whitelist, never by picking tokens.
-  A `call` key left on an existing token row is ignored.
+  A `call` key left on an old token definition is ignored.
 
-### The two stores
+### Where tokens live
 
-`TOKEN_STORE` in `4D-mcp-config.pref` selects where `MCP_Auth._lookup()` reads
-from. Anything other than these two values resolves nothing:
-
-- **`"inline"`** (the default, and the behavior when the key is absent) —
-  `_loadTokens()`, an object keyed by raw bearer string, hardcoded in this
-  component. Fixtures for the self-tests and a single-host demo. Editing them
-  means editing a component that every host loads, and the demo bearers
-  (`SECRET_FULL`, `SECRET_RO`, `SECRET_STAR`) ship into all of them.
-- **`"table"`** — the HOST dataclass named by `TOKEN_TABLE`. What real
-  deployments use: a component shared by several host projects cannot carry
-  their tokens.
-
-Row shape for the token dataclass:
-
-| Attribute | Type | Holds |
-|---|---|---|
-| `tokenHash` | Text | SHA-256 hex of the bearer, from `MCP_Auth.hashToken()` |
-| `tokenId` | Text | audit label; what the request/audit logs record |
-| `grants` | Object | `{ read; write }` — the capability shape above |
-| `isActive` | Boolean | `false` = revoked |
-
-The bearer is never stored, only its digest. `hashToken()` is public precisely
-so any host-side seeding routine hashes identically — were the two to drift,
-every token would fail to validate with nothing to explain why.
-
-**Fail closed.** `"table"` whose `TOKEN_TABLE` is blank, misnamed, or missing
-the row shape resolves NO token and never falls back to the inline set; the
-symptom is a uniform `AUTH_DENIED`. The alternative — a misconfigured
-production host quietly honoring `SECRET_STAR` — is the failure this rules out.
-
-**The token dataclass is force-excluded from the exposed set**
-(`MCP_Schema.exposedDataclasses` → `_dropTokenTable`), applied *after* every
-other exposure rule including `WHITELIST_TABLES`, which overrides the blacklist
-and `RESPECT_4D_SCHEMA` and would otherwise be the one way to publish it by
-name. Without that, a single wildcard read grant returns every other token's
-hashes and grants.
-
-### Minting and revoking
-
-`MCP_Auth.issueToken()` / `.revokeToken()` live in the component on purpose:
-the digest algorithm, the row shape, and the meaning of `isActive` are all this
-class's business, and a host-side copy per project is the same method written N
-times — the first edit to one of them writes a row in a shape `MCP_Auth` no
-longer reads, with no error to explain why a valid-looking token stopped
-validating.
-
-Neither is reachable over the wire: `call_method` invokes host project methods
-only, and the token table is excluded from exposure regardless. Run them from
-the host's method editor, or wrap them in a host method that logs the result.
+`_loadTokens()`, hardcoded in this component. That is the only store — there is
+no table lookup, no minting call, no expiry, and no revocation short of editing
+this method and rebuilding. Keys are raw bearer strings:
 
 ```4d
-$res:=cs.mcp4d.MCP_Auth.me.issueToken("tok_reporting"; \
-	New object("read"; New collection("Customer"; "Order"); "write"; New collection))
-  // -> {success; message; token; tokenId}
-  // token is "mcp_" + two dashless UUIDs, returned ONCE — only the digest is
-  // stored, so a lost token is reissued under a new id, never recovered.
-
-$res:=cs.mcp4d.MCP_Auth.me.revokeToken("tok_reporting")
-  // -> {success; message}   flips isActive; the row (and the audit trail) stays
+$t["SECRET_FULL"]:=New object(\
+    "token_id"; "tok_full"; \
+    "read";  New collection("Customer"; "Order"); \
+    "write"; New collection("Order"))
 ```
 
-`issueToken` refuses rather than half-succeeding — blank id, duplicate
-`tokenId`, unresolvable `TOKEN_TABLE`, or a table without the row shape each
-return `success: false` with a message naming the problem.
+The design is deliberate, not a stage on the way to something managed. This
+component opens a large hole in the host on purpose; credential machinery that
+made it look administered would obscure that without closing it. What closes it
+is removing the component (the host runs fine without it) or `ENABLED: false`
+(effective on the next request, no restart).
 
-Both resolve the table through the **ungated** `_resolveTable()`, not
-`tokenTableName()`. That is deliberate: you create the first row while
-`TOKEN_STORE` is still `"inline"`, then throw the switch. The other order locks
-every client out until a row exists that cannot yet be created. Authentication
-and exposure keep the gated resolver, so a `TOKEN_TABLE` left set beside an
-inline store never quietly goes live.
+Two consequences of tokens living in shared component source:
 
-### What is still missing
-
-- **No expiry.** There is no `expiresAt` attribute and `validate()` checks none.
-  A token is valid until someone revokes it.
-- **No rotation, no TTL, no scope beyond `read`/`write`.** `isActive` is the
-  whole lifecycle.
-- **No `updateToken`.** Re-granting means editing the `grants` object on the row.
-
-Tracked in `TODO.md`.
+- **Every host that installs the component gets the same bearers.** Never add a
+  host-specific token here — that is how `SECRET_HPC_RO`, a token for one
+  deployment's tables, ended up shipping to all of them.
+- **The bearers below are demo fixtures published in this repo.** `SECRET_STAR`
+  is a read/write wildcard bounded only by the exposure gate. A deployment
+  replaces them rather than adding to them.
 
 ## Registering a callable action (`call_method`)
 

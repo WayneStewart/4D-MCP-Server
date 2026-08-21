@@ -43,36 +43,7 @@ Function digest($cap : Object) : Object
 //     RESPECT_4D_SCHEMA is true, minus BLACKLIST_TABLES
 // Config table names are matched case-INSENSITIVELY (ds[...] resolution is), so
 // a blacklist/whitelist typo of the wrong case cannot silently fail open.
-//
-// THE TOKEN TABLE IS NEVER EXPOSED. When TOKEN_STORE is "table", the dataclass
-// named by TOKEN_TABLE is removed from the result AFTER every other rule has
-// run — including WHITELIST_TABLES, which overrides the blacklist and would
-// otherwise let an admin publish the credential store by name. A wildcard read
-// grant plus a readable token table is a privilege escalation: one query
-// returns every other token's grants, and hashes to work on offline.
 Function exposedDataclasses($config : Object) : Collection
-	return This._dropTokenTable($config; This._exposedRaw($config))
-
-// _dropTokenTable: remove the TOKEN_TABLE dataclass from an exposed set. No-op
-// for the inline store, which has no host credential table to protect.
-Function _dropTokenTable($config : Object; $names : Collection) : Collection
-	var $secret : Text
-	$secret:=cs.MCP_Auth.me.tokenTableName($config)
-	if (Length($secret)=0)
-		return $names
-	end if
-	var $out : Collection
-	$out:=New collection
-	var $n : Text
-	For each ($n; $names)
-		if (Lowercase($n)#Lowercase($secret))
-			$out.push($n)
-		end if
-	End for each
-	return $out
-
-// _exposedRaw: the config rules above, before the token-table exclusion.
-Function _exposedRaw($config : Object) : Collection
 	var $out : Collection
 	$out:=New collection
 	if ($config=Null)

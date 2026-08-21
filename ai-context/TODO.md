@@ -32,23 +32,25 @@ stack works end-to-end.
   (design_notes_halfB.md quirk 10.)
 
 - [x] **Token store needs to leave the source.** ~~Adding `SECRET_HPC_RO`
-  required editing `MCP_Auth._loadTokens()` and a full recompile/repackage.~~
-  Done 2026-08-17 (`a5f393c`, `8412c58`): `TOKEN_STORE: "table"` reads the host
-  dataclass named by `TOKEN_TABLE` (rows `{tokenHash, tokenId, grants,
-  isActive}`, bearer stored as SHA-256 only, fail-closed on misconfiguration),
-  and `MCP_Auth.issueToken()` / `.revokeToken()` mint and revoke from the host
-  without rebuilding the component.
+  required editing `MCP_Auth._loadTokens()` and a full recompile/repackage.
+  Implement `TOKEN_STORE: "table"` so a deployment can mint/revoke tokens
+  without rebuilding the component.~~ **Closed 2026-08-21 as won't-do.** The
+  table store was built (`a5f393c`, `8412c58`) and then removed: it required a
+  schema change to the host database and a hand-written host method to reach
+  `issueToken`, so it never delivered the self-service it was meant to, and its
+  happy path was never once executed — every test was a refusal case. The
+  config pref, already per-host and re-read live, would have covered the same
+  ground with no new machinery had a store been wanted at all.
 
-- [ ] **Token lifecycle is still just `isActive`.** The remainder of the item
-  above, unimplemented: there is no `expiresAt` attribute and `validate()`
-  checks none, so a token is valid until someone revokes it. No rotation, no
-  TTL, no `updateToken` (re-granting means editing the row's `grants` object).
+  The standing decision: this component opens a large hole in the host on
+  purpose, and its credentials should look like what they are rather than like
+  managed infrastructure. The real controls are removing the component (a no-op
+  for the host) and `ENABLED: false` (live on the next request). Tokens stay
+  literals in `_loadTokens()`.
 
-- [ ] **The shipped default is still `TOKEN_STORE: "inline"`.** A fresh install
-  therefore honors the component's demo bearers, `SECRET_STAR` (read/write
-  wildcard) among them, until the deployment switches to the table store.
-  Decide whether the shipping default should instead be a value that resolves
-  nothing, forcing an explicit choice before the endpoint answers anyone.
+  What survives from the original item: **never put a host-specific token in
+  component source.** `SECRET_HPC_RO` shipped one deployment's table names to
+  every host that installed the component; it was removed in the same pass.
 
 - [ ] **Server-side aggregation via `METHOD_WHITELIST`.** A monthly-sales
   rollup took 5 paged `query_entities` calls (80-row cap) plus client-side

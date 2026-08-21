@@ -91,14 +91,6 @@
   "comment": "Maximum request body size in bytes. Oversize requests are rejected with BAD_PARAMS. 0 = unlimited.",
   "value": 262144
  },
- "TOKEN_STORE": {
-  "comment": "Where MCP_Auth resolves Bearer tokens: 'inline' = the fixture object in MCP_Auth._loadTokens(), editable only by changing this component; 'table' = the host dataclass named by TOKEN_TABLE, which is what real deployments use. Any other value resolves no token at all.",
-  "value": "inline"
- },
- "TOKEN_TABLE": {
-  "comment": "Host dataclass holding token records when TOKEN_STORE is 'table'. Row shape: tokenHash (Text, SHA-256 hex of the bearer as produced by MCP_Auth.hashToken - the bearer itself is never stored), tokenId (Text, audit label), grants (Object: {read; write} per wire contract 2 \u2014 there is no call grant; method reach is set by ALLOW_CALL_METHOD + METHOD_WHITELIST, not per token), isActive (Boolean, false = revoked). Blank or unresolvable while TOKEN_STORE is 'table' means NO token validates - it never falls back to the inline set. This dataclass is force-excluded from the exposed set, so no token can read it through the API, WHITELIST_TABLES notwithstanding.",
-  "value": ""
- },
  "RATE_LIMIT": {
   "comment": "Maximum requests per minute per token (fixed one-minute window). Exceeding it returns 429 RATE_LIMITED. 0 = unlimited.",
   "value": 120

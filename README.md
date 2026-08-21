@@ -66,7 +66,7 @@ Requires **4D 20 R8+** (HTTP request handlers).
    - Table exposure and verb gates (`ENABLED`, `ALLOW_READ/WRITE/DELETE`, `ALLOW_CALL_METHOD`).
    - `METHOD_WHITELIST` — maps client-facing action names to host project methods for `4d_call_method`.
 
-5. **Mint a token.** Add a token dataclass to the host, point `TOKEN_TABLE` at it, and mint the first credential with `cs.mcp4d.MCP_Auth.me.issueToken(...)`, then set `TOKEN_STORE` to `"table"`. Until you do, the deployment runs on the component's demo tokens — see [Tokens & capabilities](#tokens--capabilities) for the row shape and why that order matters.
+5. **Set a token.** Tokens are literals in `MCP_Auth._loadTokens()` inside the component. Replace the demo bearers with your own before the endpoint is reachable by anything you care about — see [Tokens & capabilities](#tokens--capabilities).
 
 ### Half A — the Node MCP server
 
@@ -216,89 +216,42 @@ Every request carries a Bearer token, which `MCP_Auth` resolves to a capability 
 
 ### Where tokens live
 
-`TOKEN_STORE` in `4D-mcp-config.pref` picks one of two stores. Any value other
-than these two resolves no token at all.
-
-| `TOKEN_STORE` | Tokens live in | Editable by |
-|---|---|---|
-| `"inline"` (default, and the value when the key is absent) | `MCP_Auth._loadTokens()`, hardcoded in component source | whoever can rebuild the component |
-| `"table"` | the host dataclass named by `TOKEN_TABLE` | anyone who can run a method in the host |
-
-**`"table"` is what a deployment should use.** `"inline"` exists for the
-component's own self-tests and for a single-host demo; its bearer strings are
-literals in source shared by every host that installs the component.
-
-> **The shipped default is `"inline"`, which means a fresh install honors the
-> demo tokens** — including `SECRET_STAR`, a read/write wildcard over every
-> exposed dataclass. Set `TOKEN_STORE` to `"table"` (and mint a real token,
-> below) before the endpoint is reachable by anything you care about.
-
-#### The token table
-
-`TOKEN_TABLE` names a host dataclass whose rows are:
-
-| Attribute | Type | What it holds |
-|---|---|---|
-| `tokenHash` | Text | SHA-256 hex of the bearer, from `MCP_Auth.hashToken()` |
-| `tokenId` | Text | the audit label — what the request and audit logs record |
-| `grants` | Object | `{ read; write }`, the capability shape above |
-| `isActive` | Boolean | `false` = revoked |
-
-**The bearer itself is never stored.** Only its digest is, so a leaked data file
-yields nothing usable and a lost token is reissued under a new id rather than
-recovered.
-
-Two safety properties are worth knowing because they change how a
-misconfiguration behaves:
-
-- **Fail closed.** `TOKEN_STORE: "table"` with a `TOKEN_TABLE` that is blank,
-  misspelled, or missing the row shape validates *no* token — it never falls
-  back to the inline set. A production host quietly honoring `SECRET_STAR`
-  because someone fat-fingered a table name is the outcome this rules out. The
-  symptom is every request returning `AUTH_DENIED`.
-- **The token table is never readable through the API it guards.** It is
-  removed from the exposed set after every other exposure rule, including
-  `WHITELIST_TABLES` — which otherwise overrides everything and would be the
-  one way to publish it by name.
-
-#### Minting and revoking
-
-Both live in the component, and neither is reachable over the wire —
-`call_method` invokes host project methods only, and the token table is
-excluded from exposure regardless. Run them from the host's method editor, or
-wrap them in a host method that logs the result:
+In `MCP_Auth._loadTokens()`, hardcoded in the component. That is the only store.
+The bearer string is the object key:
 
 ```4d
-  // mint — the token is shown ONCE and never again
-$res:=cs.mcp4d.MCP_Auth.me.issueToken("tok_reporting"; \
-	New object("read"; New collection("Customer"; "Order"); "write"; New collection))
-  // -> {success; message; token: "mcp_<64 hex>"; tokenId}
-
-  // revoke — flips isActive, keeps the row
-$res:=cs.mcp4d.MCP_Auth.me.revokeToken("tok_reporting")
+$t["SECRET_FULL"]:=New object(\
+    "token_id"; "tok_full"; \
+    "read";  New collection("Customer"; "Order"); \
+    "write"; New collection("Order"))
 ```
 
-`issueToken` refuses rather than half-succeeding: a blank id, a duplicate
-`tokenId`, an unresolvable `TOKEN_TABLE`, or a table missing the row shape all
-come back `success: false` with a message naming the problem. Revoking flips
-`isActive` instead of deleting the row, so the record that the credential
-existed survives the revocation.
+There is no generation step, no expiry, no revocation short of editing this
+method and rebuilding the component. It is a short list of shared API keys, not
+session tokens, and it is meant to be read that way.
 
-Both resolve `TOKEN_TABLE` *without* checking `TOKEN_STORE`, deliberately: you
-create the first row while the store is still `"inline"`, then throw the
-switch. The other order locks every client out until a row exists that cannot
-yet be created.
+**This is deliberate.** The MCP endpoint is a large, obvious hole in the host
+application. Wrapping its credentials in a table, a minting call, and a
+lifecycle would make it *look* smaller than it is without making it smaller —
+that machinery buys a sophisticated operator a little and everyone else nothing
+but a false impression. The controls that actually matter here are blunt and
+immediate:
 
-#### What token management still does not do
+- **Remove the component.** The host runs fine without it — the
+  `COMPONENT LIST` guard in the startup snippet above means nothing breaks and
+  nothing fails to compile.
+- **Set `ENABLED` to `false`** in `4D-mcp-config.pref`. The component answers
+  nothing from the next request onward. No restart, no redeploy.
 
-- **No expiry.** There is no `expiresAt` and nothing checks one. A token is
-  valid until someone revokes it.
-- **No rotation, no TTL, no scopes beyond `read`/`write`.** `isActive` is the
-  entire lifecycle.
-- **Changing what a token may reach means editing its `grants` row directly** —
-  there is no `updateToken`.
+Two consequences follow from tokens living in shared component source, and both
+matter more than the store's shape:
 
-Tracked in `ai-context/TODO.md`.
+- **Every host that installs this component gets the same bearer strings.**
+  Never add a host-specific token to `_loadTokens()`.
+- **The bearers that ship are demo fixtures, published in this repository.**
+  `SECRET_STAR` in particular is a read/write wildcard over every exposed
+  dataclass, and `ALLOW_READ` defaults to `true`. A deployment *replaces* them;
+  it does not add to them.
 
 ## Documentation
 
