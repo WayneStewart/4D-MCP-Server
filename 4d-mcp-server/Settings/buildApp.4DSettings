@@ -37,7 +37,7 @@
         <ItemsCount>0</ItemsCount>
       </ArrayLicenseMac>
     </Licenses>
-    <BuildMacDestFolder>::4d-mcp-server_Build:</BuildMacDestFolder>
+    <BuildMacDestFolder>:Builds:</BuildMacDestFolder>
     <ArrayExcludedPluginName>
       <ItemsCount>0</ItemsCount>
     </ArrayExcludedPluginName>
@@ -48,15 +48,18 @@
       <ItemsCount>0</ItemsCount>
     </ArrayExcludedComponentName>
     <ArrayExcludedModuleName>
-      <ItemsCount>2</ItemsCount>
+      <ItemsCount>4</ItemsCount>
       <Item1>SpellChecker</Item1>
       <Item2>4D Qodly Pro and Data Explorer</Item2>
+      <Item3>CEF</Item3>
+      <Item4>4D Updater</Item4>
     </ArrayExcludedModuleName>
     <SignApplication>
-      <MacSignature>False</MacSignature>
-      <MacCertificate></MacCertificate>
+      <MacSignature>True</MacSignature>
+      <MacCertificate>Developer ID Application: Mac to Basics P/L (H8FSU88B4T)</MacCertificate>
       <AdHocSign>True</AdHocSign>
     </SignApplication>
   </BuildApp>
+
 
 </Preferences4D>
