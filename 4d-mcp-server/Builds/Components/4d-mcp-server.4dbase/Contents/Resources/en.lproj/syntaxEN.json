@@ -277,6 +277,38 @@
 			],
 			"Summary": ""
 		},
+		"snapshot()": {
+			"Syntax": "**.snapshot**( *values_o* : Object; *rows_c* : Collection ) : Text",
+			"Params": [
+				[
+					"values_o",
+					"Object",
+					"->"
+				],
+				[
+					"rows_c",
+					"Collection",
+					"->"
+				],
+				[
+					"",
+					"Text",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
+		"defaultValues()": {
+			"Syntax": "**.defaultValues**() : Object",
+			"Params": [
+				[
+					"",
+					"Object",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
 		"load()": {
 			"Syntax": "**.load**() : Boolean",
 			"Params": [

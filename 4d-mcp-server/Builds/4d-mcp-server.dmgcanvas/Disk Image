@@ -3,7 +3,6 @@
     "appleID" : "waynestewart@mac.com",
     "autoopen" : true,
     "background" : {
-      "imageScaleOption" : 100,
       "layoutObjects" : [
 
       ],
