@@ -364,8 +364,19 @@ Function handle($token : Text; $body : Object) : Object
 // =============================================================================
 // The component ships its default config in Resources/4D-mcp-config.pref
 // (Resources stays readable when the component is compiled; Project/Sources
-// does not). The live config is the HOST's Project/Sources/4D-mcp-config.pref;
-// if the host has none, the default is copied there on first read.
+// does not). The live config is the HOST's data-folder copy,
+// <data folder>/Settings/4D-mcp-config.pref: the data folder is writable in
+// every deployment mode and survives a redeploy of a built application, whose
+// structure (Project/ inside the .4DZ) is read-only and replaced wholesale.
+// See ai-context/config-location.md.
+//
+// If the host has no data-folder copy, it is seeded on first read from the
+// first of these that exists (_seedConfigFile):
+//   1. the host's Project/Sources/4D-mcp-config.pref — the location used
+//      before, so existing interpreted installs carry their settings over;
+//   2. the component's own default.
+// Once seeded, only the data-folder copy is read; the seed is never consulted
+// again.
 //
 // File format is { KEY: {comment, value}, ... } — getConfig() flattens that to
 // { KEY: value } so callers never touch .value. Keys starting with "_" are
@@ -380,13 +391,14 @@ Function getConfig() : Object
 	var $file : 4D.File
 	$file:=This._configFile()
 	if (Not($file.exists))
-		var $default : 4D.File
-		$default:=This._defaultConfigFile()
-		if (Not($default.exists))
+		var $seed : 4D.File
+		$seed:=This._seedConfigFile()
+		if ($seed=Null)
 			return Null
 		end if
 		Try
-			$default.copyTo($file.parent)
+			$file.parent.create()  // Settings/ may not exist yet in a fresh data folder
+			$seed.copyTo($file.parent)
 		Catch
 			return Null
 		End try
@@ -416,9 +428,26 @@ Function getConfig() : Object
 	return $settings
 
 Function _configFile() : 4D.File
-	// Host's editable copy. The * resolves to the host when running as a
-	// component; standalone (dev) it is this project's own folder.
-	return Folder(fk database folder; *).file("Project/Sources/4D-mcp-config.pref")
+	// Host's editable copy, in the host's data folder. The * resolves to the
+	// host when running as a component (without it Folder returns Null there);
+	// standalone (dev) it is this project's own data folder.
+	return Folder(fk data folder; *).folder("Settings").file("4D-mcp-config.pref")
+
+Function _seedConfigFile() : 4D.File
+	// The file a missing data-folder copy is seeded from: the host's legacy
+	// Project/Sources copy, else the component's own default. Null when
+	// neither exists (fail closed).
+	var $candidates : Collection
+	$candidates:=New collection(\
+		Folder(fk database folder; *).file("Project/Sources/4D-mcp-config.pref"); \
+		This._defaultConfigFile())
+	var $candidate : 4D.File
+	For each ($candidate; $candidates)
+		if ($candidate.exists)
+			return $candidate
+		end if
+	End for each
+	return Null
 
 Function _defaultConfigFile() : 4D.File
 	// Component's shipping default (no * = component's own Resources).

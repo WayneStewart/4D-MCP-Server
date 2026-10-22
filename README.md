@@ -60,9 +60,9 @@ Requires **4D 20 R8+** (HTTP request handlers).
 
    The `COMPONENT LIST` guard plus `Formula from string` indirection means the host compiles and runs cleanly even when the component is not installed (or later removed) — a direct call to `MCP_Initialize_Host` would fail to compile without it.
 
-   > On first run this copies the default deployment config `4D-mcp-config.pref` into the host's `Project/Sources/`, then starts the component's own web server on the config's `HTTP_PORT` (default **8044**; set `0` to serve `/mcp` from the host's main web server instead). The call is idempotent and safe to re-run.
+   > On first run this creates the deployment config `4D-mcp-config.pref` in the host's **data folder** (`<data folder>/Settings/`), seeding it from the host's `Project/Sources/` copy if there is one (the previous location), else from the component's own default. It then starts the component's own web server on the config's `HTTP_PORT` (default **8044**; set `0` to serve `/mcp` from the host's main web server instead). The call is idempotent and safe to re-run.
 
-4. **Configure exposure and method access.** Edit `4D-mcp-config.pref` in the host's `Project/Sources/`:
+4. **Configure exposure and method access.** Edit `4D-mcp-config.pref` in the host's data folder (`<data folder>/Settings/`). It lives there, not in the structure, so it stays writable and survives a redeploy of a built application; each deployment (dev, live) keeps its own policy (see [ai-context/config-location.md](ai-context/config-location.md)):
    - Table exposure and verb gates (`ENABLED`, `ALLOW_READ/WRITE/DELETE`, `ALLOW_CALL_METHOD`).
    - `METHOD_WHITELIST` — maps client-facing action names to host project methods for `4d_call_method`.
 

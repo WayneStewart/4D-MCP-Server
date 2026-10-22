@@ -23,7 +23,7 @@ Requires **4D 20 R8+** (HTTP request handlers). Ordered-source project.
 | `Project/Sources/Methods/MCP_StartServer.4dm` | Test entry: seeds fixtures, then runs `MCP_Initialize_Host` (curl) |
 | `Project/Sources/Methods/MCP_Build.4dm` | Headless compile entry point for tool4d (`Compile project` from disk; see "Building the component") |
 | `Project/Sources/catalog.4DCatalog` | Fixture schema: `Customer`, `Order` (+ relation) |
-| `Resources/4D-mcp-config.pref` | Component's default deployment config; copied to the host's `Project/Sources/` on first read (edit it there) |
+| `Resources/4D-mcp-config.pref` | Component's default deployment config; the last-resort seed for the host's `<data folder>/Settings/4D-mcp-config.pref`, which is created on first read (edit it there) |
 | `test/run_curl_tests.sh` | Exercises every action over real HTTP |
 | `test/start_server.sh` | Launches a live headless 4D for the curl tests |
 
@@ -49,8 +49,10 @@ Compile this project and drop the component into the host's `Components/`
 folder, then call `MCP_Initialize_Host` from the host's startup
 (`On Startup` / `On Server Startup`). That method:
 
-1. Ensures `4D-mcp-config.pref` exists in the host's `Project/Sources/`
-   (copies the component's default on first read — same path `getConfig()` uses).
+1. Ensures `4D-mcp-config.pref` exists in the host's data folder
+   (`<data folder>/Settings/`), seeding it on first read from the host's
+   legacy `Project/Sources/` copy, else the component's default — same path
+   `getConfig()` uses.
 2. Starts the **component's own web server** (`WEB Server` object) on the
    config's `HTTP_PORT` (default 8044; set `0` to skip and serve `/mcp` from
    the host's web server instead), registering the `/mcp` handler

@@ -4,8 +4,10 @@
 MCP_Initialize_Host () : Object   // {success; port; message}
  Created by: Kirk Brooks as Designer, Created: 07/11/26, 17:32:55
 
- 1. Ensures the deployment config exists in the host's Project/Sources
-    (getConfig copies the component's default there on first read).
+ 1. Ensures the deployment config exists in the host's data folder
+    (<data folder>/Settings/4D-mcp-config.pref; getConfig seeds it on first
+    read from the host's legacy Project/Sources copy, else the component's
+    default — see MCP_Handler's config loader).
  2. Starts the component's OWN web server (WebServer object) on HTTP_PORT,
     so the /mcp handler runs isolated from the host's web server.
     HTTP_PORT <= 0 skips the start — serve /mcp from the host's web
@@ -21,7 +23,7 @@ If ($config=Null)
 	// or a malformed {comment, value} entry. Say so at startup instead of
 	// letting every request answer 500 INTERNAL.
 	var $configPath : Text
-	$configPath:=Folder(fk database folder; *).file("Project/Sources/4D-mcp-config.pref").platformPath
+	$configPath:=cs.MCP_Handler.me._configFile().platformPath
 	log_worker("MCP init FAILED: config unavailable or malformed — check "+$configPath+Char(Line feed))
 	return New object("success"; False; "port"; 0; "message"; "MCP config unavailable or malformed — check "+$configPath)
 End if 
