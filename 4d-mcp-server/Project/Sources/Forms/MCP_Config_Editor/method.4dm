@@ -14,6 +14,13 @@
 //  entries are edited as JSON in the detail pane, since each carries an
 //  ordered, typed argument spec.
 //
+//  Form.cleanSnapshot is the comparable state at load / Apply / Revert;
+//  MCP_Config_EditorDirty compares against it. On Close Box goes to
+//  MCP_Config_EditorClose (asks to save) and is deliberately NOT forwarded
+//  to Foundation, whose Fnd_Gen_FormMethod would close the window regardless.
+//
+//  Claude, 2026-10-23 - dirty tracking; close box asks to save
+//
 
 var $foundationPresent_b : Boolean
 ARRAY TEXT($Components_at; 0)
@@ -40,12 +47,13 @@ Case of
 			
 		End if 
 		
-	: (Form event code=On Close Box)
-		CANCEL
+		Form.cleanSnapshot:=Form.config.snapshot(Form.values; Form.tables)
 		
+	: (Form event code=On Close Box)
+		var $closed_b : Boolean:=MCP_Config_EditorClose
 		
 End case 
 
-If ($foundationPresent_b)
+If ($foundationPresent_b) && (Form event code#On Close Box)
 	EXECUTE METHOD("Fnd_Gen_FormMethod"; *)
 End if 

@@ -78,6 +78,23 @@ Function values() : Object
 
 	return $values_o
 
+// defaultValues: the built-in defaults (MCP_ConfigDefaults) as the same flat
+// key -> value object as values(): documentation keys ("_...") and retired
+// keys are left out. Nothing is read from or written to disk.
+Function defaultValues() : Object
+	var $defaults_o : Object:=MCP_ConfigDefaults
+	var $values_o : Object:=New object
+	var $dead_c : Collection:=This.deadKeys()
+	var $key_t : Text
+
+	For each ($key_t; $defaults_o)
+		If (Substring($key_t; 1; 1)#"_") && ($dead_c.indexOf($key_t)<0)
+			$values_o[$key_t]:=$defaults_o[$key_t].value
+		End if
+	End for each
+
+	return $values_o
+
 // comment: the documentation string 4D ships for a key, for tooltips.
 Function comment($key_t : Text) : Text
 	var $comment_t : Text:=""
@@ -184,6 +201,23 @@ Function _nameList($value_v : Variant) : Collection
 	End if
 
 	return $names_c
+
+// snapshot: a comparable text of the editor state, for change detection. A
+// copy of the values with the table ticks folded in (the live rows are not
+// disturbed), stringified with the keys sorted so that key order never
+// counts as a change.
+Function snapshot($values_o : Object; $rows_c : Collection) : Text
+	var $copy_o : Object:=OB Copy($values_o)
+	var $sorted_o : Object:=New object
+	var $key_t : Text
+
+	This.applyTableRows($copy_o; $rows_c)
+
+	For each ($key_t; OB Keys($copy_o).sort())
+		$sorted_o[$key_t]:=$copy_o[$key_t]
+	End for each
+
+	return JSON Stringify($sorted_o)
 
 	//MARK:- validation
 
