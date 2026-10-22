@@ -84,17 +84,51 @@
 					"sizingX": "fixed",
 					"sizingY": "move"
 				},
+				"btn_reset": {
+					"type": "button",
+					"text": "Reset",
+					"left": 96,
+					"top": 533,
+					"width": 68,
+					"height": 22,
+					"fontSize": 13,
+					"method": "ObjectMethods/btn_reset.4dm",
+					"events": [
+						"onClick"
+					],
+					"focusable": false,
+					"sizingX": "fixed",
+					"sizingY": "move"
+				},
 				"btn_cancel": {
 					"type": "button",
 					"text": "Cancel",
+					"left": 592,
+					"top": 533,
+					"width": 68,
+					"height": 22,
+					"fontSize": 13,
+					"events": [
+						"onClick"
+					],
+					"focusable": false,
+					"sizingX": "move",
+					"sizingY": "move",
+					"method": "ObjectMethods/btn_cancel.4dm"
+				},
+				"btn_apply": {
+					"type": "button",
+					"text": "Apply",
 					"left": 682,
 					"top": 533,
 					"width": 68,
 					"height": 22,
 					"fontSize": 13,
-					"events": [],
+					"method": "ObjectMethods/btn_apply.4dm",
+					"events": [
+						"onClick"
+					],
 					"focusable": false,
-					"action": "cancel",
 					"sizingX": "move",
 					"sizingY": "move"
 				},

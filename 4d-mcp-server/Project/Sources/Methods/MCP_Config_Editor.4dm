@@ -16,6 +16,7 @@
 //  Method is an autostart type
 //     waynestewart@mac.com
 // Claude, 2026-10-23 - moved into the component; reads and writes the server's data-folder config
+// Claude, 2026-10-23 - plain, resizable, non-modal window with a close box (was Movable form dialog box)
 // ----------------------------------------------------
 
 var $ProcessID_i; $StackSize_i; $WindowID_i : Integer
@@ -34,7 +35,7 @@ If (Current process name=$DesiredProcessName_t)
 	COMPONENT LIST($Components_at)
 	$foundationPresent_b:=(Find in array($Components_at; "Foundation@")>0)
 	
-	$windowID_i:=Open form window($Form_t; Movable form dialog box; Horizontally centered; Vertically centered; *)
+	$windowID_i:=Open form window($Form_t; Plain form window; Horizontally centered; Vertically centered; *)
 	
 	If ($foundationPresent_b)
 		SET WINDOW TITLE("MCP Editor")
