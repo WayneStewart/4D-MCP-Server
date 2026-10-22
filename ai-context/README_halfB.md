@@ -23,7 +23,7 @@ Requires **4D 20 R8+** (HTTP request handlers). Ordered-source project.
 | `Project/Sources/Methods/MCP_StartServer.4dm` | Test entry: seeds fixtures, then runs `MCP_Initialize_Host` (curl) |
 | `Project/Sources/Methods/MCP_Build.4dm` | Headless compile entry point for tool4d (`Compile project` from disk; see "Building the component") |
 | `Project/Sources/catalog.4DCatalog` | Fixture schema: `Customer`, `Order` (+ relation) |
-| `Resources/4D-mcp-config.pref` | Component's default deployment config; the last-resort seed for the host's `<data folder>/Settings/4D-mcp-config.pref`, which is created on first read (edit it there) |
+| `Methods/MCP_ConfigDefaults` | Component's default deployment config, as code (no template file ships); written to the host's `<data folder>/Settings/4D-mcp-config.pref` on first read (edit it there, or use `MCP_Pref`) |
 | `test/run_curl_tests.sh` | Exercises every action over real HTTP |
 | `test/start_server.sh` | Launches a live headless 4D for the curl tests |
 

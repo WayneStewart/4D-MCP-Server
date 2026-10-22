@@ -53,6 +53,8 @@ exists (`MCP_Handler._seedConfigFile()`), then reads only the data-folder copy:
    file is never read again once migrated and can then be removed: 4D
    manages `Project/Sources/`, so a host file there is best avoided anyway.
 2. **Component `Resources/4D-mcp-config.pref`** — the shipped default, as now.
+   (Replaced by defaults held in code in the next step —
+   [config-pref.md](config-pref.md).)
 
 A fresh built deployment therefore starts on the component's default and is
 configured once, on that machine; the setting then survives every redeploy.
