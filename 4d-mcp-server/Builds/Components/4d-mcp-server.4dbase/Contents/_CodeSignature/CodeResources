@@ -6,7 +6,7 @@
 	<dict>
 		<key>Resources/InfoPlist.strings</key>
 		<data>
-		c0BzSfy11k7TlO1J2AHAFIgTN3U=
+		2hAJs4eCsxgWYxNCpE0j6RoOhaY=
 		</data>
 		<key>Resources/en.lproj/syntaxEN.json</key>
 		<dict>
@@ -24,7 +24,7 @@
 		<dict>
 			<key>cdhash</key>
 			<data>
-			KPxXl48jmtDwP3tVzgum6hNzU1U=
+			RGwdb6X4xmm1eN/FvP7Ciybc09w=
 			</data>
 			<key>requirement</key>
 			<string>identifier "4d-mcp-server.4DZ" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = H8FSU88B4T</string>
@@ -33,14 +33,14 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			58cOqrQF8sZCTUSkK0vyYOmj8yOp90wIavFqcmH6mxM=
+			g+80QQxI5mmoVA6Iro6o5z3p2ggznD6+ymB7HP7BRgo=
 			</data>
 		</dict>
 		<key>Resources/InfoPlist.strings</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			pmz3vogzipLgVJSi7zMq6y3K4BJJ7MaobNPKOuzYehc=
+			DH+J7wqZ683WcYG8VF7TDTkI3QTDQNYGF93Q1P6PRPY=
 			</data>
 		</dict>
 		<key>Resources/en.lproj/syntaxEN.json</key>
