@@ -9,12 +9,6 @@
 		<field name="active" uuid="9E788EECFB3C4C66A7FDC720F3E2697F" type="1" id="4"/>
 		<field name="internalNote" uuid="A1B2C3D4E5F647889900112233445566" type="10" limiting_length="255" id="5" hide_in_REST="true"/>
 		<primary_key field_name="ID" field_uuid="4284FF43BD5B4FF88A54A2E7B5926A6E"/>
-		<table_extra>
-			<editor_table_info fields_ordering="1" displayable_fields_count="6">
-				<color red="255" green="255" blue="255" alpha="0"/>
-				<coordinates left="40" top="40" width="120" height="167.33203125"/>
-			</editor_table_info>
-		</table_extra>
 	</table>
 	<table name="Order" uuid="07BCABEFE7A446EA886A27DA3C1AE76B" id="2">
 		<field name="ID" uuid="40FC805161684FBC9F7EA3991AE7C45F" type="4" unique="true" autosequence="true" never_null="true" id="1"/>
@@ -22,25 +16,13 @@
 		<field name="total" uuid="3AC282A698BF427480CBBC1C704CC267" type="6" id="3"/>
 		<field name="status" uuid="972CA8E6A7F74E379C5FAE09A0AC6E8D" type="10" limiting_length="20" id="4"/>
 		<primary_key field_name="ID" field_uuid="40FC805161684FBC9F7EA3991AE7C45F"/>
-		<table_extra>
-			<editor_table_info fields_ordering="1" displayable_fields_count="6">
-				<color red="255" green="255" blue="255" alpha="0"/>
-				<coordinates left="240" top="40" width="120" height="167.33203125"/>
-			</editor_table_info>
-		</table_extra>
 	</table>
 	<table name="Secret" uuid="B7C8D9E0F1A2434455667788990011AA" id="3" hide_in_REST="true">
 		<field name="ID" uuid="C3D4E5F6A7B84899AABBCCDDEEFF0011" type="4" unique="true" autosequence="true" never_null="true" id="1"/>
 		<field name="payload" uuid="D9E0F1A2B3C445556677889900AABB22" type="10" limiting_length="255" id="2"/>
 		<primary_key field_name="ID" field_uuid="C3D4E5F6A7B84899AABBCCDDEEFF0011"/>
-		<table_extra>
-			<editor_table_info fields_ordering="1" displayable_fields_count="6">
-				<color red="255" green="255" blue="255" alpha="0"/>
-				<coordinates left="440" top="40" width="120" height="167.33203125"/>
-			</editor_table_info>
-		</table_extra>
 	</table>
-	<relation uuid="1AFC4C1DA39E467887057770C5CF4B11" name_Nto1="customer" name_1toN="orders" auto_load_Nto1="false" auto_load_1toN="false" foreign_key="false" state="1">
+	<relation uuid="1AFC4C1DA39E467887057770C5CF4B11" name_Nto1="customer" name_1toN="orders" state="1">
 		<related_field kind="source">
 			<field_ref uuid="C27B9E17B3FC49A58021421EEFBCAFE6" name="customerID">
 				<table_ref uuid="07BCABEFE7A446EA886A27DA3C1AE76B" name="Order"/>

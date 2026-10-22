@@ -4,15 +4,11 @@
 <dict>
 	<key>files</key>
 	<dict>
-		<key>Resources/4D-mcp-config.pref</key>
-		<data>
-		rgdKG8JaXjCMFOOiOK1wAybpTDI=
-		</data>
 		<key>Resources/en.lproj/syntaxEN.json</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			eTT+DRvej9HTxkpxkg5hQ+W/JRY=
+			wz0UdNqzbCLgaqQe4oXClALCXn4=
 			</data>
 			<key>optional</key>
 			<true/>
@@ -24,7 +20,7 @@
 		<dict>
 			<key>cdhash</key>
 			<data>
-			ZVXuoaniW8YQ8mmdrsZEqQFgpJM=
+			qNpysDhB50H5a6w/04try5tbCG0=
 			</data>
 			<key>requirement</key>
 			<string>identifier "4d-mcp-server.4DZ" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = H8FSU88B4T</string>
@@ -33,21 +29,14 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			kIDLp2/H0KPj42nwCI+aNPhUaY5cKMxAbmnf8b/W2WI=
-			</data>
-		</dict>
-		<key>Resources/4D-mcp-config.pref</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			ks6hdWGH7uWHQ8EDFQZGYl5cbdgjIqIYZ7ws3euiCbk=
+			fDLwKSTPDEQl3fmCkdSt35twQun8S7CM73ZK47ah704=
 			</data>
 		</dict>
 		<key>Resources/en.lproj/syntaxEN.json</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			AXpnBIlYRXgl0a9gsQ+x46yG1UTH6tCiIr0Vu6LelX0=
+			cYOwxursaLtCdwBtUTWNZQ41f2pmLSKUV2W471KVi14=
 			</data>
 			<key>optional</key>
 			<true/>

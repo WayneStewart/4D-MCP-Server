@@ -54,6 +54,27 @@
 			],
 			"Summary": ""
 		},
+		"MCP_Pref": {
+			"Syntax": "**MCP_Pref**( *key* : Text; *newValue* : Variant ) : Variant",
+			"Params": [
+				[
+					"key",
+					"Text",
+					"->"
+				],
+				[
+					"newValue",
+					"Variant",
+					"->"
+				],
+				[
+					"",
+					"Variant",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
 		"MCP_Fixture_OrderCount": {
 			"Syntax": "**MCP_Fixture_OrderCount**( *status* : Text ) : Object",
 			"Params": [
@@ -69,9 +90,27 @@
 				]
 			],
 			"Summary": ""
+		},
+		"MCP_Config_Editor": {
+			"Syntax": "**MCP_Config_Editor**() : Variant",
+			"Params": [
+				[
+					"",
+					"Variant",
+					"<-"
+				]
+			],
+			"Summary": ""
 		}
 	},
 	"cs.mcp4d": {
+		"MCP_ConfigFile": {
+			"new()": {
+				"Syntax": "**.new**()",
+				"Params": [],
+				"Summary": ""
+			}
+		},
 		"MCP_Test": {
 			"new()": {
 				"Syntax": "**.new**()",
@@ -106,6 +145,160 @@
 				"Params": [],
 				"Summary": ""
 			}
+		}
+	},
+	"MCP_ConfigFile": {
+		"save()": {
+			"Syntax": "**.save**( *values_o* : Object ) : Object",
+			"Params": [
+				[
+					"values_o",
+					"Object",
+					"->"
+				],
+				[
+					"",
+					"Object",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
+		"validate()": {
+			"Syntax": "**.validate**( *values_o* : Object ) : Collection",
+			"Params": [
+				[
+					"values_o",
+					"Object",
+					"->"
+				],
+				[
+					"",
+					"Collection",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
+		"actionRows()": {
+			"Syntax": "**.actionRows**( *values_o* : Object ) : Collection",
+			"Params": [
+				[
+					"values_o",
+					"Object",
+					"->"
+				],
+				[
+					"",
+					"Collection",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
+		"applyTableRows()": {
+			"Syntax": "**.applyTableRows**( *values_o* : Object; *rows_c* : Collection )",
+			"Params": [
+				[
+					"values_o",
+					"Object",
+					"->"
+				],
+				[
+					"rows_c",
+					"Collection",
+					"->"
+				]
+			],
+			"Summary": ""
+		},
+		"values()": {
+			"Syntax": "**.values**() : Object",
+			"Params": [
+				[
+					"",
+					"Object",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
+		"comment()": {
+			"Syntax": "**.comment**( *key_t* : Text ) : Text",
+			"Params": [
+				[
+					"key_t",
+					"Text",
+					"->"
+				],
+				[
+					"",
+					"Text",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
+		"tableRows()": {
+			"Syntax": "**.tableRows**( *values_o* : Object ) : Collection",
+			"Params": [
+				[
+					"values_o",
+					"Object",
+					"->"
+				],
+				[
+					"",
+					"Collection",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
+		"dataclasses()": {
+			"Syntax": "**.dataclasses**() : Collection",
+			"Params": [
+				[
+					"",
+					"Collection",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
+		"deadKeys()": {
+			"Syntax": "**.deadKeys**() : Collection",
+			"Params": [
+				[
+					"",
+					"Collection",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
+		"load()": {
+			"Syntax": "**.load**() : Boolean",
+			"Params": [
+				[
+					"",
+					"Boolean",
+					"<-"
+				]
+			],
+			"Summary": ""
+		},
+		"document": {
+			"Syntax": "document : Object"
+		},
+		"fingerprint": {
+			"Syntax": "fingerprint : Text"
+		},
+		"loadError": {
+			"Syntax": "loadError : Text"
+		},
+		"path": {
+			"Syntax": "path : Text"
 		}
 	},
 	"MCP_Test": {

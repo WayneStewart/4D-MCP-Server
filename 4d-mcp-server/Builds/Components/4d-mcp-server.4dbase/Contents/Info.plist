@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <plist>
+
   <dict>
     <key>CFBundleName</key>
     <string>4d-mcp-server</string>
@@ -14,4 +15,5 @@
     <key>CFBundlePackageType</key>
     <string>BNDL</string>
   </dict>
+
 </plist>

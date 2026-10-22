@@ -1,0 +1,47 @@
+{
+  "diskImage" : {
+    "appleID" : "waynestewart@mac.com",
+    "autoopen" : true,
+    "background" : {
+      "imageScaleOption" : 100,
+      "layoutObjects" : [
+
+      ],
+      "type" : 3
+    },
+    "codeSigningIdentityString" : "75FB2F2D37874020A3996DCF03ABE1BA01F86808",
+    "iconPreviewVisible" : false,
+    "iconSize" : 183,
+    "itemInfoVisible" : false,
+    "labelPosition" : 0,
+    "licenses" : [
+
+    ],
+    "nameFontSize" : 12,
+    "statusBarVisible" : false,
+    "suggestedDiskImageName" : "4d-mcp-server.dmg",
+    "teamID" : "H8FSU88B4T",
+    "toolbarVisible" : false,
+    "uid" : "lfngwqcxcj",
+    "validationScheme" : 2,
+    "viewLayout" : 0,
+    "volumeName" : "4d-mcp-server",
+    "volumeSize" : 0,
+    "volumeSizeOption" : "Automatic",
+    "windowContentHeight" : 360,
+    "windowContents" : [
+      {
+        "filePath" : "\/Users\/waynestewart\/4D\/4D-MCP-Server\/4d-mcp-server\/Builds\/Components\/4d-mcp-server.4dbase",
+        "iconSize" : 100,
+        "invisible" : false,
+        "isAnAlias" : false,
+        "location" : "{306, 186}",
+        "relativeFilePath" : "Components\/4d-mcp-server.4dbase"
+      }
+    ],
+    "windowContentWidth" : 600,
+    "windowLeft" : 200,
+    "windowTop" : 120
+  },
+  "version" : 4
+}
