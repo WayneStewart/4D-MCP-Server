@@ -1,0 +1,766 @@
+{
+	"$4d": {
+		"version": "1",
+		"kind": "form"
+	},
+	"windowTitle": "MCP server — deployment config",
+	"destination": "detailScreen",
+	"windowSizingX": "variable",
+	"windowSizingY": "variable",
+	"windowMinWidth": 860,
+	"windowMinHeight": 620,
+	"windowMaxWidth": 32767,
+	"windowMaxHeight": 32767,
+	"memorizeGeometry": false,
+	"rightMargin": 20,
+	"bottomMargin": 20,
+	"events": [
+		"onLoad",
+		"onOutsideCall",
+		"onActivate",
+		"onCloseBox"
+	],
+	"method": "method.4dm",
+	"pages": [
+		{
+			"objects": {
+				"label_title": {
+					"type": "text",
+					"text": "MCP server — deployment config",
+					"left": 20,
+					"top": 16,
+					"width": 600,
+					"height": 26,
+					"fontSize": 16,
+					"fontWeight": "bold"
+				},
+				"label_status": {
+					"type": "text",
+					"text": "",
+					"left": 20,
+					"top": 46,
+					"width": 820,
+					"height": 18,
+					"fontSize": 11,
+					"dataSource": "Form:C1466.status",
+					"stroke": "#666666",
+					"sizingX": "grow"
+				},
+				"tabs": {
+					"type": "tab",
+					"top": 44,
+					"left": 20,
+					"width": 820,
+					"height": 468,
+					"sizingX": "grow",
+					"sizingY": "grow",
+					"dataSource": "",
+					"dataSourceTypeHint": "integer",
+					"labels": [
+						"Server",
+						"Access",
+						"Tables",
+						"Methods",
+						"Limits",
+						"Logging"
+					],
+					"class": "",
+					"action": "gotoPage",
+					"events": []
+				},
+				"btn_revert": {
+					"type": "button",
+					"text": "Revert",
+					"left": 20,
+					"top": 533,
+					"width": 68,
+					"height": 22,
+					"fontSize": 13,
+					"method": "ObjectMethods/btn_revert.4dm",
+					"events": [
+						"onClick"
+					],
+					"focusable": false,
+					"sizingX": "fixed",
+					"sizingY": "move"
+				},
+				"btn_cancel": {
+					"type": "button",
+					"text": "Cancel",
+					"left": 682,
+					"top": 533,
+					"width": 68,
+					"height": 22,
+					"fontSize": 13,
+					"events": [],
+					"focusable": false,
+					"action": "cancel",
+					"sizingX": "move",
+					"sizingY": "move"
+				},
+				"btn_save": {
+					"type": "button",
+					"text": "Save",
+					"left": 772,
+					"top": 533,
+					"width": 68,
+					"height": 22,
+					"fontSize": 13,
+					"method": "ObjectMethods/btn_save.4dm",
+					"events": [
+						"onClick"
+					],
+					"focusable": false,
+					"defaultButton": true,
+					"sizingX": "move",
+					"sizingY": "move"
+				}
+			}
+		},
+		{
+			"objects": {
+				"srv_intro": {
+					"type": "text",
+					"text": "Note: The component runs its own web server, distinct from the host",
+					"left": 48,
+					"top": 86,
+					"width": 700,
+					"height": 20,
+					"stroke": "#666666"
+				},
+				"chk_enabled": {
+					"type": "checkbox",
+					"text": "Enabled",
+					"left": 140,
+					"top": 120,
+					"width": 100,
+					"height": 17,
+					"fontSize": 13,
+					"dataSourceTypeHint": "boolean",
+					"dataSource": "Form:C1466.values.ENABLED"
+				},
+				"label_port": {
+					"type": "text",
+					"text": "HTTP port:",
+					"left": 30,
+					"top": 182,
+					"width": 100,
+					"height": 16,
+					"fontSize": 13,
+					"textAlign": "right",
+					"right": 130
+				},
+				"input_port": {
+					"type": "input",
+					"left": 140,
+					"top": 182,
+					"width": 110,
+					"height": 17,
+					"fontSize": 13,
+					"dataSourceTypeHint": "integer",
+					"dataSource": "Form:C1466.values.HTTP_PORT"
+				},
+				"note_port": {
+					"type": "text",
+					"text": "Read once at startup",
+					"left": 263,
+					"top": 183,
+					"width": 120,
+					"height": 13,
+					"stroke": "#666666",
+					"fontTheme": "additional"
+				},
+				"chk_https": {
+					"type": "checkbox",
+					"text": "Require HTTPS",
+					"left": 140,
+					"top": 151,
+					"width": 120,
+					"height": 17,
+					"fontSize": 13,
+					"dataSourceTypeHint": "boolean",
+					"dataSource": "Form:C1466.values.REQUIRE_HTTPS"
+				},
+				"label_bodySize": {
+					"type": "text",
+					"text": "Max body size:",
+					"left": 30,
+					"top": 213,
+					"width": 100,
+					"height": 16,
+					"fontSize": 13,
+					"textAlign": "right",
+					"right": 130
+				},
+				"input_bodySize": {
+					"type": "input",
+					"left": 140,
+					"top": 213,
+					"width": 110,
+					"height": 17,
+					"fontSize": 13,
+					"dataSourceTypeHint": "integer",
+					"dataSource": "Form:C1466.values.MAX_BODY_SIZE"
+				},
+				"note_bodySize": {
+					"type": "text",
+					"text": "(in bytes) 0 = unlimited.",
+					"left": 260,
+					"top": 213,
+					"width": 140,
+					"height": 13,
+					"stroke": "#666666",
+					"fontTheme": "additional"
+				},
+				"Line": {
+					"type": "line",
+					"top": 336,
+					"left": 59,
+					"width": 477,
+					"height": 0,
+					"stroke": "#ff0000",
+					"visibility": "hidden"
+				}
+			}
+		},
+		{
+			"objects": {
+				"acc_intro": {
+					"type": "text",
+					"text": "Deployment-wide gates. \rA token's own capabilities are checked as well — these decide what any token can reach at all.",
+					"left": 50,
+					"top": 266,
+					"width": 700,
+					"height": 31,
+					"stroke": "#666666"
+				},
+				"chk_read": {
+					"type": "checkbox",
+					"text": "Read — schema digest, queries, single entities",
+					"left": 140,
+					"top": 90,
+					"width": 640,
+					"height": 20,
+					"fontSize": 13,
+					"dataSourceTypeHint": "boolean",
+					"dataSource": "Form:C1466.values.ALLOW_READ"
+				},
+				"chk_write": {
+					"type": "checkbox",
+					"text": "Write — create and update entities",
+					"left": 140,
+					"top": 121,
+					"width": 640,
+					"height": 20,
+					"fontSize": 13,
+					"dataSourceTypeHint": "boolean",
+					"dataSource": "Form:C1466.values.ALLOW_WRITE"
+				},
+				"chk_delete": {
+					"type": "checkbox",
+					"text": "Delete — drop entities",
+					"left": 140,
+					"top": 152,
+					"width": 640,
+					"height": 20,
+					"fontSize": 13,
+					"dataSourceTypeHint": "boolean",
+					"dataSource": "Form:C1466.values.ALLOW_DELETE"
+				},
+				"chk_callMethod": {
+					"type": "checkbox",
+					"text": "Call method — run the host methods on the Methods page",
+					"left": 140,
+					"top": 183,
+					"width": 640,
+					"height": 20,
+					"fontSize": 13,
+					"dataSourceTypeHint": "boolean",
+					"dataSource": "Form:C1466.values.ALLOW_CALL_METHOD"
+				},
+				"note_tokens": {
+					"type": "text",
+					"text": "Tokens are not configured here: they are literals in the component's MCP_Auth._loadTokens(), so changing them means editing and rebuilding the component.",
+					"left": 50,
+					"top": 309,
+					"width": 700,
+					"height": 40,
+					"stroke": "#666666"
+				}
+			}
+		},
+		{
+			"objects": {
+				"chk_respectSchema": {
+					"type": "checkbox",
+					"text": "Honour each table's “Expose as REST resource” setting",
+					"left": 48,
+					"top": 76,
+					"width": 700,
+					"height": 20,
+					"fontSize": 13,
+					"dataSourceTypeHint": "boolean",
+					"dataSource": "Form:C1466.values.RESPECT_4D_SCHEMA"
+				},
+				"list_tables": {
+					"type": "listbox",
+					"left": 48,
+					"top": 108,
+					"width": 740,
+					"height": 326,
+					"listboxType": "collection",
+					"dataSource": "Form:C1466.tables",
+					"currentItemSource": "Form:C1466.currentTable",
+					"selectionMode": "single",
+					"resizingMode": "legacy",
+					"rowHeight": "19px",
+					"verticalAlign": "middle",
+					"sortable": true,
+					"showHeaders": true,
+					"headerHeight": "17px",
+					"scrollbarHorizontal": "hidden",
+					"scrollbarVertical": "automatic",
+					"fontSize": 12,
+					"sizingX": "grow",
+					"sizingY": "grow",
+					"method": "ObjectMethods/list_tables.4dm",
+					"events": [
+						"onClick",
+						"onDataChange",
+						"onSelectionChange"
+					],
+					"alternateFill": "#EDF3FE",
+					"horizontalLineStroke": "transparent",
+					"verticalLineStroke": "transparent",
+					"columns": [
+						{
+							"name": "tbl_name",
+							"header": {
+								"name": "h_tbl_name",
+								"text": "Dataclass"
+							},
+							"footer": {
+								"name": "f_tbl_name"
+							},
+							"dataSource": "This:C1470.name",
+							"width": 430,
+							"enterable": false
+						},
+						{
+							"name": "tbl_exposed",
+							"header": {
+								"name": "h_tbl_exposed",
+								"text": "REST"
+							},
+							"footer": {
+								"name": "f_tbl_exposed"
+							},
+							"dataSource": "This:C1470.exposed",
+							"width": 80,
+							"dataSourceTypeHint": "boolean",
+							"textAlign": "center",
+							"enterable": false
+						},
+						{
+							"name": "tbl_white",
+							"header": {
+								"name": "h_tbl_white",
+								"text": "Only"
+							},
+							"footer": {
+								"name": "f_tbl_white"
+							},
+							"dataSource": "This:C1470.inWhitelist",
+							"width": 90,
+							"dataSourceTypeHint": "boolean",
+							"textAlign": "center"
+						},
+						{
+							"name": "tbl_black",
+							"header": {
+								"name": "h_tbl_black",
+								"text": "Never"
+							},
+							"footer": {
+								"name": "f_tbl_black"
+							},
+							"dataSource": "This:C1470.inBlacklist",
+							"width": 90,
+							"dataSourceTypeHint": "boolean",
+							"textAlign": "center"
+						}
+					]
+				},
+				"note_exposure": {
+					"type": "text",
+					"text": "Tick “Only” on any table and the whitelist takes over: those tables alone are exposed, and both “Never” and the REST setting are ignored.",
+					"left": 48,
+					"top": 452,
+					"width": 740,
+					"height": 34,
+					"fontSize": 11,
+					"stroke": "#666666",
+					"sizingX": "grow"
+				}
+			}
+		},
+		{
+			"objects": {
+				"list_actions": {
+					"type": "listbox",
+					"left": 48,
+					"top": 76,
+					"width": 740,
+					"height": 190,
+					"listboxType": "collection",
+					"dataSource": "Form:C1466.actions",
+					"currentItemSource": "Form:C1466.currentAction",
+					"selectionMode": "single",
+					"resizingMode": "legacy",
+					"rowHeight": "19px",
+					"verticalAlign": "middle",
+					"sortable": false,
+					"showHeaders": true,
+					"headerHeight": "1em",
+					"scrollbarHorizontal": "hidden",
+					"scrollbarVertical": "automatic",
+					"fontSize": 13,
+					"sizingX": "grow",
+					"method": "ObjectMethods/list_actions.4dm",
+					"events": [
+						"onSelectionChange"
+					],
+					"alternateFill": "#EDF3FE",
+					"horizontalLineStroke": "transparent",
+					"verticalLineStroke": "transparent",
+					"columns": [
+						{
+							"name": "act_name",
+							"header": {
+								"name": "h_act_name",
+								"text": "Action (what clients call)"
+							},
+							"footer": {
+								"name": "f_act_name"
+							},
+							"dataSource": "This:C1470.name",
+							"width": 300,
+							"enterable": false
+						},
+						{
+							"name": "act_method",
+							"header": {
+								"name": "h_act_method",
+								"text": "Host method"
+							},
+							"footer": {
+								"name": "f_act_method"
+							},
+							"dataSource": "This:C1470.method",
+							"width": 390,
+							"enterable": false
+						}
+					]
+				},
+				"btn_actionAdd": {
+					"type": "button",
+					"text": "Add…",
+					"left": 48,
+					"top": 276,
+					"width": 80,
+					"height": 24,
+					"fontSize": 13,
+					"method": "ObjectMethods/btn_actionAdd.4dm",
+					"events": [
+						"onClick"
+					],
+					"focusable": false
+				},
+				"btn_actionRemove": {
+					"type": "button",
+					"text": "Remove",
+					"left": 136,
+					"top": 276,
+					"width": 80,
+					"height": 24,
+					"fontSize": 13,
+					"method": "ObjectMethods/btn_actionRemove.4dm",
+					"events": [
+						"onClick"
+					],
+					"focusable": false
+				},
+				"note_methods": {
+					"type": "text",
+					"text": "Every entry is a door into host code. “args” is the ordered positional spec; optional arguments come last.",
+					"left": 228,
+					"top": 278,
+					"width": 608,
+					"height": 34,
+					"fontSize": 11,
+					"stroke": "#666666"
+				},
+				"input_actionJSON": {
+					"type": "input",
+					"left": 48,
+					"top": 314,
+					"width": 740,
+					"height": 160,
+					"multiline": "yes",
+					"scrollbarVertical": "automatic",
+					"fontFamily": "Monaco",
+					"fontSize": 12,
+					"dataSource": "Form:C1466.actionJSON",
+					"method": "ObjectMethods/input_actionJSON.4dm",
+					"events": [
+						"onDataChange"
+					],
+					"sizingX": "grow",
+					"sizingY": "grow"
+				}
+			}
+		},
+		{
+			"objects": {
+				"lim_intro": {
+					"type": "text",
+					"text": "Throttling and pagination, applied per token.",
+					"left": 48,
+					"top": 76,
+					"width": 700,
+					"height": 20,
+					"stroke": "#666666"
+				},
+				"label_rateLimit": {
+					"type": "text",
+					"text": "Requests per minute:",
+					"left": 48,
+					"top": 116,
+					"width": 230,
+					"height": 17,
+					"fontSize": 13,
+					"textAlign": "right"
+				},
+				"input_rateLimit": {
+					"type": "input",
+					"left": 292,
+					"top": 114,
+					"width": 90,
+					"height": 17,
+					"fontSize": 13,
+					"dataSourceTypeHint": "integer",
+					"dataSource": "Form:C1466.values.RATE_LIMIT"
+				},
+				"note_rateLimit": {
+					"type": "text",
+					"text": "Fixed one-minute window; exceeding it returns 429 RATE_LIMITED. 0 = unlimited.",
+					"left": 396,
+					"top": 107,
+					"width": 400,
+					"height": 34,
+					"stroke": "#666666"
+				},
+				"label_defaultLimit": {
+					"type": "text",
+					"text": "Default page size:",
+					"left": 48,
+					"top": 166,
+					"width": 230,
+					"height": 17,
+					"fontSize": 13,
+					"textAlign": "right"
+				},
+				"input_defaultLimit": {
+					"type": "input",
+					"left": 292,
+					"top": 164,
+					"width": 90,
+					"height": 17,
+					"fontSize": 13,
+					"dataSourceTypeHint": "integer",
+					"dataSource": "Form:C1466.values.DEFAULT_LIMIT"
+				},
+				"note_defaultLimit": {
+					"type": "text",
+					"text": "Used when a query sends no limit of its own.",
+					"left": 396,
+					"top": 164,
+					"width": 400,
+					"height": 20,
+					"stroke": "#666666"
+				},
+				"label_maxLimit": {
+					"type": "text",
+					"text": "Maximum page size:",
+					"left": 48,
+					"top": 210,
+					"width": 230,
+					"height": 17,
+					"fontSize": 13,
+					"textAlign": "right"
+				},
+				"input_maxLimit": {
+					"type": "input",
+					"left": 292,
+					"top": 208,
+					"width": 90,
+					"height": 17,
+					"fontSize": 13,
+					"dataSourceTypeHint": "integer",
+					"dataSource": "Form:C1466.values.MAX_LIMIT"
+				},
+				"note_maxLimit": {
+					"type": "text",
+					"text": "Hard cap. Wire contract v1 fixes the ceiling at 80 — this may be set lower, never higher.",
+					"left": 396,
+					"top": 201,
+					"width": 400,
+					"height": 34,
+					"stroke": "#666666"
+				}
+			}
+		},
+		{
+			"objects": {
+				"label_logLevel": {
+					"type": "text",
+					"text": "Log level:",
+					"left": 48,
+					"top": 82,
+					"width": 230,
+					"height": 17,
+					"fontSize": 13,
+					"textAlign": "right"
+				},
+				"input_logLevel": {
+					"type": "input",
+					"left": 292,
+					"top": 80,
+					"width": 120,
+					"height": 17,
+					"fontSize": 13,
+					"dataSource": "Form:C1466.values.LOG_LEVEL"
+				},
+				"note_logLevel": {
+					"type": "text",
+					"text": "off | error | info | debug — “error” logs only failed requests.",
+					"left": 426,
+					"top": 82,
+					"width": 380,
+					"height": 13,
+					"stroke": "#666666",
+					"fontTheme": "additional"
+				},
+				"chk_logRequests": {
+					"type": "checkbox",
+					"text": "Write the request log — Logs/mcp_requests.jsonl in the host",
+					"left": 48,
+					"top": 122,
+					"width": 700,
+					"height": 17,
+					"fontSize": 13,
+					"dataSourceTypeHint": "boolean",
+					"dataSource": "Form:C1466.values.LOG_REQUESTS"
+				},
+				"chk_auditWrites": {
+					"type": "checkbox",
+					"text": "Audit every successful mutation — Logs/mcp_audit.jsonl",
+					"left": 48,
+					"top": 156,
+					"width": 700,
+					"height": 17,
+					"fontSize": 13,
+					"dataSourceTypeHint": "boolean",
+					"dataSource": "Form:C1466.values.AUDIT_WRITES"
+				},
+				"note_audit": {
+					"type": "text",
+					"text": "The audit log is independent of the log level.",
+					"left": 72,
+					"top": 184,
+					"width": 500,
+					"height": 13,
+					"stroke": "#666666",
+					"fontTheme": "additional"
+				},
+				"label_onError": {
+					"type": "text",
+					"text": "On error, call:",
+					"left": 48,
+					"top": 228,
+					"width": 230,
+					"height": 20,
+					"fontSize": 13,
+					"textAlign": "right"
+				},
+				"input_onError": {
+					"type": "input",
+					"left": 292,
+					"top": 226,
+					"width": 240,
+					"height": 17,
+					"fontSize": 13,
+					"dataSource": "Form:C1466.values.ON_ERROR_CALL"
+				},
+				"note_onError": {
+					"type": "text",
+					"text": "Host method receiving {ts, action, code, message}. Empty = none.",
+					"left": 546,
+					"top": 218,
+					"width": 260,
+					"height": 26,
+					"stroke": "#666666",
+					"fontTheme": "additional"
+				},
+				"label_onRequest": {
+					"type": "text",
+					"text": "On request, call:",
+					"left": 48,
+					"top": 272,
+					"width": 230,
+					"height": 20,
+					"fontSize": 13,
+					"textAlign": "right"
+				},
+				"input_onRequest": {
+					"type": "input",
+					"left": 292,
+					"top": 270,
+					"width": 240,
+					"height": 17,
+					"fontSize": 13,
+					"dataSource": "Form:C1466.values.ON_REQUEST_CALL"
+				},
+				"note_onRequest": {
+					"type": "text",
+					"text": "Host method receiving {action, token_id} for each authenticated request; return {deny: true} to refuse it. Empty = none.",
+					"left": 546,
+					"top": 272,
+					"width": 260,
+					"height": 52,
+					"stroke": "#666666",
+					"fontTheme": "additional"
+				},
+				"note_designTime": {
+					"type": "text",
+					"text": "Design-time tool: Project/Sources is read-only in a built application.",
+					"left": 48,
+					"top": 462,
+					"width": 700,
+					"height": 13,
+					"stroke": "#666666",
+					"fontTheme": "additional"
+				}
+			}
+		}
+	],
+	"entryOrder": [],
+	"geometryStamp": 331,
+	"editor": {
+		"activeView": "View 1",
+		"defaultView": "View 1",
+		"views": {
+			"View 1": {}
+		}
+	}
+}

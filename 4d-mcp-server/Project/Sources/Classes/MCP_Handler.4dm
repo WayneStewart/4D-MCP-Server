@@ -362,14 +362,24 @@ Function handle($token : Text; $body : Object) : Object
 // =============================================================================
 //  Config loader
 // =============================================================================
-// The component ships its default config in Resources/4D-mcp-config.pref
-// (Resources stays readable when the component is compiled; Project/Sources
-// does not). The live config is the HOST's Project/Sources/4D-mcp-config.pref;
-// if the host has none, the default is copied there on first read.
+// The component's defaults live in code (MCP_ConfigDefaults), not in a shipped
+// file: a template in the component's Resources would be copied to every
+// remote client. The live config is the HOST's data-folder copy,
+// <data folder>/Settings/4D-mcp-config.pref: the data folder is writable in
+// every deployment mode and survives a redeploy of a built application, whose
+// structure (Project/ inside the .4DZ) is read-only and replaced wholesale.
+// See ai-context/config-location.md.
+//
+// If the host has no data-folder copy, the first read creates it: a copy of
+// the host's legacy Project/Sources/4D-mcp-config.pref when one exists (so
+// existing installs carry their settings over), else MCP_ConfigDefaults.
+// From then on only the data-folder copy is read.
 //
 // File format is { KEY: {comment, value}, ... } — getConfig() flattens that to
 // { KEY: value } so callers never touch .value. Keys starting with "_" are
-// documentation entries and are skipped.
+// documentation entries and are skipped. A key the host's file lacks (one
+// added by a newer component, say) takes its value from MCP_ConfigDefaults,
+// so every known setting always has a value.
 //
 // Singletons are stateless (see design notes), so the file is read on demand.
 // Editing the host file is therefore live on the next request — no reload
@@ -377,16 +387,20 @@ Function handle($token : Text; $body : Object) : Object
 // callers must treat Null as fail-closed.
 
 Function getConfig() : Object
+	var $defaults : Object
+	$defaults:=MCP_ConfigDefaults
 	var $file : 4D.File
 	$file:=This._configFile()
 	if (Not($file.exists))
-		var $default : 4D.File
-		$default:=This._defaultConfigFile()
-		if (Not($default.exists))
-			return Null
-		end if
+		var $legacy : 4D.File
+		$legacy:=This._legacyConfigFile()
 		Try
-			$default.copyTo($file.parent)
+			$file.parent.create()  // Settings/ may not exist yet in a fresh data folder
+			if ($legacy.exists)
+				$legacy.copyTo($file.parent)
+			else
+				$file.setText(JSON Stringify($defaults; *))
+			end if
 		Catch
 			return Null
 		End try
@@ -413,16 +427,25 @@ Function getConfig() : Object
 		end if
 		$settings[$key]:=$raw[$key].value
 	End for each
+
+	// A known key the file lacks takes the built-in default
+	For each ($key; $defaults)
+		if ((Substring($key; 1; 1)#"_") && (Not(OB Is defined($settings; $key))))
+			$settings[$key]:=$defaults[$key].value
+		end if
+	End for each
 	return $settings
 
 Function _configFile() : 4D.File
-	// Host's editable copy. The * resolves to the host when running as a
-	// component; standalone (dev) it is this project's own folder.
-	return Folder(fk database folder; *).file("Project/Sources/4D-mcp-config.pref")
+	// Host's editable copy, in the host's data folder. The * resolves to the
+	// host when running as a component (without it Folder returns Null there);
+	// standalone (dev) it is this project's own data folder.
+	return Folder(fk data folder; *).folder("Settings").file("4D-mcp-config.pref")
 
-Function _defaultConfigFile() : 4D.File
-	// Component's shipping default (no * = component's own Resources).
-	return Folder(fk resources folder).file("4D-mcp-config.pref")
+Function _legacyConfigFile() : 4D.File
+	// Where the config lived before: the host's Project/Sources. Read once, to
+	// seed a missing data-folder copy, and never again.
+	return Folder(fk database folder; *).file("Project/Sources/4D-mcp-config.pref")
 
 // --- Routing tables ---------------------------------------------------------
 

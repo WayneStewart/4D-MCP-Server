@@ -174,7 +174,10 @@ Function runAll() : Object
 	// not NOT_FOUND. All checks use $FULL: the token allows everything, so any
 	// denial can only come from the config gate.
 	var $cfgFile : 4D.File
-	$cfgFile:=Folder(fk database folder; *).file("Project/Sources/4D-mcp-config.pref")
+	$cfgFile:=cs.MCP_Handler.me._configFile()  // the file getConfig reads (data folder)
+	if (Not($cfgFile.exists))
+		cs.MCP_Handler.me.getConfig()  // seeds it on first read
+	end if
 	var $cfgOrig : Text
 	$cfgOrig:=$cfgFile.getText()
 
