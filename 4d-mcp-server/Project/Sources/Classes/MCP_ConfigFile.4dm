@@ -130,7 +130,9 @@ Function tableRows($values_o : Object) : Collection
 	// names in the config that no longer match a dataclass are still shown,
 	// so a stale entry can be seen and unticked rather than silently kept
 	var $name_v : Variant
-	For each ($name_v; $white_c.combine($black_c))
+	// concat, not combine: combine() extends $white_c in place, which marked every
+	// stale blacklist name as whitelisted too, and Save then wrote it into the whitelist
+	For each ($name_v; $white_c.concat($black_c))
 		If ($rows_c.query("name = :1"; String($name_v)).length=0)
 			$rows_c.push(New object(\
 				"name"; String($name_v); \
