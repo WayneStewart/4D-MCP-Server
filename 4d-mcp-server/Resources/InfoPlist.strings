@@ -1,6 +1,6 @@
 ﻿/* Localized versions of Info.plist keys */
 
 CFBundleName = "4d-mcp-server";
-CFBundleShortVersionString = "4d-mcp-server 21.2026-10-23";
-CFBundleGetInfoString = "4d-mcp-server 21 2026-10-23 (fork: data-folder config, MCP_Pref, config editor), 2026-10-23";
+CFBundleShortVersionString = "4d-mcp-server 21.2026-10-23b";
+CFBundleGetInfoString = "4d-mcp-server 21 2026-10-23b (fork: data-folder config, MCP_Pref, config editor), 2026-10-23";
 NSHumanReadableCopyright = "Copyright © 2026, Kirk Brooks (MIT); fork additions © 2026, Mac to Basics";
